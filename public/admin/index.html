@@ -1101,6 +1101,9 @@ function initSocket(){
   document.getElementById('ws-dot').classList.add('live');
 
   SOCKET.on('order:new',({order})=>{
+    // A new order was placed — stock was just decremented server-side,
+    // so drop the cached menu everywhere so remaining counts stay accurate.
+    MENU_CACHE=[];
     if(SESSION.role==='Cashier'||SESSION.role==='Admin'){
       SFX.newOrder();
       toast('🎵 New Order!',`${order.order_number} — ${order.waiter_name}`,'info');
@@ -1109,6 +1112,7 @@ function initSocket(){
     else refreshPage();
   });
   SOCKET.on('order:approved',({order})=>{
+    MENU_CACHE=[];
     if(SESSION.role==='Kitchen'){SFX.newOrder();toast('🎵 Order Approved!',`${order.order_number} from Cashier — prepare now!`,'success');}
     if(SESSION.role==='Waiter'){SFX.msg();toast('✅ Order Approved','Cashier approved your order — kitchen is preparing','success');}
     refreshPage();
@@ -1278,7 +1282,7 @@ async function sendOrder(){
   const notes=document.getElementById('waiter-notes').value.trim();
   try{
     await API.createOrder({items:CART.map(c=>({menu_item_id:c.menu_item_id,quantity:c.quantity})),notes,table_number:SELECTED_TABLE});
-    CART=[];SELECTED_TABLE=null;
+    CART=[];SELECTED_TABLE=null;MENU_CACHE=[];
     toast('Order Sent!','Order submitted — cashier must approve before kitchen','success');
     showPage('pg-waiter-orders');
   }catch(e){toast('Error',e.message,'error');}
@@ -2241,7 +2245,7 @@ async function submitAssignOrder(waiterId,waiterName){
       waiter_id:waiterId,
       table_number:ASSIGN_TABLE,
     });
-    ASSIGN_CART=[];ASSIGN_WAITER_ID=null;ASSIGN_TABLE=null;
+    ASSIGN_CART=[];ASSIGN_WAITER_ID=null;ASSIGN_TABLE=null;MENU_CACHE=[];
     toast('✅ Order Assigned!',`Order sent to kitchen for ${waiterName}`,'success');
     SFX.newOrder();
     renderCashierWaiters();
