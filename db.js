@@ -2,9 +2,13 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { MongoClient } = require('mongodb');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'data.json');
+const MONGO_DB_NAME = process.env.MONGODB_DB_NAME || 'ottoman_bey_pos';
+const MONGO_COLLECTION = 'posdb';
+const MONGO_DOC_ID = 'main';
 const ROLES = ['Admin', 'Cashier', 'Waiter', 'Kitchen'];
 const MENU_MANAGE_ROLES = ['Admin', 'Kitchen', 'Cashier'];
 
@@ -121,30 +125,90 @@ function migrateDB(db) {
   return db;
 }
 
-// ── load / save (atomic write, JSON file persistence) ─────────────
+// ── load / save ──────────────────────────────────────────────────
+// Two storage modes:
+//  1. MONGODB_URI set  -> permanent storage in MongoDB Atlas (survives
+//     restarts/redeploys on Render's free tier, which has no persistent disk).
+//  2. MONGODB_URI unset -> local data/data.json file only (fine for running
+//     on your own computer, but resets on every Render restart).
+// Either way, all business logic below reads/writes the in-memory _DB
+// object synchronously — persistence happens underneath, on save.
 let _DB = null;
+let _mongoCollection = null;
+let _mongoClient = null;
 
-function loadDB() {
-  if (_DB) return _DB;
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, 'utf8');
-      _DB = migrateDB(JSON.parse(raw));
-      return _DB;
+async function initStorage() {
+  const uri = process.env.MONGODB_URI;
+  if (uri) {
+    try {
+      _mongoClient = new MongoClient(uri, { serverSelectionTimeoutMS: 8000 });
+      await _mongoClient.connect();
+      _mongoCollection = _mongoClient.db(MONGO_DB_NAME).collection(MONGO_COLLECTION);
+      console.log('db: connected to MongoDB — data will persist permanently.');
+    } catch (e) {
+      console.error('db: could not connect to MongoDB, falling back to local file storage.', e.message);
+      _mongoCollection = null;
     }
-  } catch (e) {
-    console.error('db: failed to load data.json, reseeding', e);
+  } else {
+    console.warn('db: MONGODB_URI not set — using local file storage only. ' +
+      'On Render\'s free tier this resets on every restart/redeploy. ' +
+      'Set MONGODB_URI to a free MongoDB Atlas cluster for permanent storage.');
   }
-  _DB = seedDB();
-  saveDB();
+
+  if (_mongoCollection) {
+    const doc = await _mongoCollection.findOne({ _id: MONGO_DOC_ID });
+    if (doc) {
+      delete doc._id;
+      _DB = migrateDB(doc);
+    } else {
+      _DB = seedDB();
+      await persistToMongo();
+    }
+  } else {
+    try {
+      if (fs.existsSync(DATA_FILE)) {
+        _DB = migrateDB(JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')));
+      } else {
+        _DB = seedDB();
+        saveDB();
+      }
+    } catch (e) {
+      console.error('db: failed to load data.json, reseeding', e);
+      _DB = seedDB();
+      saveDB();
+    }
+  }
   return _DB;
 }
 
+function loadDB() {
+  // By the time any request handler runs, initStorage() has already
+  // populated _DB during server startup — this is just a safe getter.
+  if (!_DB) _DB = seedDB();
+  return _DB;
+}
+
+function persistToMongo() {
+  if (!_mongoCollection) return Promise.resolve();
+  const doc = Object.assign({ _id: MONGO_DOC_ID }, _DB);
+  return _mongoCollection.replaceOne({ _id: MONGO_DOC_ID }, doc, { upsert: true })
+    .catch(e => console.error('db: MongoDB save failed (will retry on next change):', e.message));
+}
+
 function saveDB() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  const tmp = DATA_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(_DB));
-  fs.renameSync(tmp, DATA_FILE);
+  // Always keep a local copy too (handy for local dev / as a safety net).
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    const tmp = DATA_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(_DB));
+    fs.renameSync(tmp, DATA_FILE);
+  } catch (e) {
+    // Non-fatal: on Render's free tier this still works, it just won't
+    // survive a restart. MongoDB (below) is the durable copy.
+  }
+  // Fire-and-forget durable write. Not awaited so requests stay fast;
+  // in-memory _DB is already updated by the caller before saveDB() runs.
+  persistToMongo();
 }
 
 // ── sessions (in-memory token -> session) ──────────────────────────
@@ -567,6 +631,6 @@ LOCAL.importBackup = (sess, parsed) => {
 };
 
 module.exports = {
-  loadDB, saveDB, LOCAL, HttpError,
+  initStorage, loadDB, saveDB, LOCAL, HttpError,
   getSessionByToken, destroySession, requireSession
 };

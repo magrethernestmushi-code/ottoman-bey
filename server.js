@@ -3,16 +3,13 @@ const path = require('path');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { loadDB, LOCAL, HttpError, getSessionByToken, destroySession } = require('./db');
+const { initStorage, LOCAL, HttpError, getSessionByToken, destroySession } = require('./db');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(express.json());
-
-// Make sure the DB is loaded (and seeded on first boot) before serving.
-loadDB();
 
 // ── auth middleware ────────────────────────────────────────────────
 function auth(req, res, next) {
@@ -137,4 +134,9 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public/admin/
 io.on('connection', () => {});
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('Ottoman Bey POS server listening on port ' + PORT));
+initStorage().then(() => {
+  server.listen(PORT, () => console.log('Ottoman Bey POS server listening on port ' + PORT));
+}).catch(err => {
+  console.error('Fatal: could not initialize storage', err);
+  process.exit(1);
+});
