@@ -407,6 +407,8 @@
       <div class="page" id="pg-admin-settings"></div>
 
       <!-- ══ MESSAGES ══ -->
+      <div class="page" id="pg-attendance"></div>
+
       <div class="page" id="pg-messages">
         <div class="page-hd flex-b">
           <div><div class="page-title" data-i18n="msg.title">💬 Messages</div><div class="page-sub" data-i18n="msg.sub">Internal staff communication</div></div>
@@ -558,6 +560,14 @@ const TRANSLATIONS = {
     'kitchen.elapsedTime':'Elapsed',
     // Food stock (shared by Kitchen/Cashier/Admin)
     'menu.outOfStock':'Out of Stock','menu.lowStock':'Low Stock',
+    'menu.remaining':'Remaining','menu.notPostedToday':'Not posted today',
+    'kitchen.postStock':'Post Stock','kitchen.stockSetTo':'Set to',
+    'order.table':'Table','order.tableLabel':'🪑 Table Number','order.pickTableFirst':'Please pick a table number',
+    'admin.lipaNamba':'💳 Lipa Namba','admin.lipaNambaLabel':'Payment Number (Lipa Namba)',
+    'admin.lipaSave':'💾 Save Lipa Namba','admin.lipaSaved':'Lipa Namba updated','admin.lipaHint':'Shown to Cashier during mobile-money payments.',
+    'nav.attendance':'Attendance','att.title':'🕒 My Attendance','att.clockIn':'✅ Clock In','att.clockOut':'🚪 Clock Out',
+    'att.today':'Today','att.notClockedIn':'Not clocked in yet','att.history':'History','att.date':'Date','att.timeIn':'Time In','att.timeOut':'Time Out',
+    'att.allStaff':'All Staff Attendance','att.staffName':'Staff',
     'menu.markOOS':'Mark Out of Stock','menu.markAvail':'Mark Available',
     'menu.stockOk':'Stock OK','menu.markLow':'Mark Low Stock',
     // Kitchen status (shown on cashier cards)
@@ -672,6 +682,14 @@ const TRANSLATIONS = {
     'kitchen.elapsedTime':'Imepita',
     // Food stock (shared by Kitchen/Cashier/Admin)
     'menu.outOfStock':'Imeisha','menu.lowStock':'Akiba Kidogo',
+    'menu.remaining':'Zimebaki','menu.notPostedToday':'Bado hazijawekwa leo',
+    'kitchen.postStock':'Pandisha Chakula','kitchen.stockSetTo':'Zimewekwa',
+    'order.table':'Meza','order.tableLabel':'🪑 Namba ya Meza','order.pickTableFirst':'Tafadhali chagua namba ya meza',
+    'admin.lipaNamba':'💳 Lipa Namba','admin.lipaNambaLabel':'Namba ya Malipo (Lipa Namba)',
+    'admin.lipaSave':'💾 Hifadhi Lipa Namba','admin.lipaSaved':'Lipa Namba imesasishwa','admin.lipaHint':'Inaonekana kwa Cashier wakati wa malipo ya simu.',
+    'nav.attendance':'Mahudhurio','att.title':'🕒 Mahudhurio Yangu','att.clockIn':'✅ Ingia Kazini','att.clockOut':'🚪 Toka Kazini',
+    'att.today':'Leo','att.notClockedIn':'Bado hujaingia kazini','att.history':'Historia','att.date':'Tarehe','att.timeIn':'Muda wa Kuingia','att.timeOut':'Muda wa Kutoka',
+    'att.allStaff':'Mahudhurio ya Wafanyakazi Wote','att.staffName':'Mfanyakazi',
     'menu.markOOS':'Weka Imeisha','menu.markAvail':'Weka Inapatikana',
     'menu.stockOk':'Akiba Sawa','menu.markLow':'Weka Akiba Kidogo',
     // Kitchen status (cashier cards)
@@ -770,11 +788,11 @@ const OTHER_APP_LABEL="the Staff POS app";
 
 // ── STATE ──────────────────────────────────────────────────────
 let SESSION=null,SOCKET=null,PAGE=null;
-let CART=[],SEL_CAT=null;
+let CART=[],SEL_CAT=null,SELECTED_TABLE=null;
 let MENU_CACHE=[],STAFF_CACHE=[];
 let PAY_ORDER_ID=null,PAY_METHOD='cash',RECEIPT_DATA=null;
 let C_TAB='pending',MSG_TAB='inbox',UNREAD=0;
-let SETTINGS_CACHE={vat_enabled:'1',vat_rate:'0.18'};
+let SETTINGS_CACHE={lipa_namba:''};
 
 
 // ── AUDIO — Piano Sound Engine ─────────────────────────────────
@@ -984,6 +1002,7 @@ function getNavs(){
       {p:'pg-admin-staff',  i:'👥', l:t('nav.staff')},
       {p:'pg-admin-reports',i:'📄', l:t('nav.reports')},
       {p:'pg-admin-roles',  i:'📊', l:t('nav.roleStats')},
+      {p:'pg-attendance',   i:'🕒', l:t('nav.attendance')},
       {p:'pg-admin-settings',i:'⚙️',l:t('nav.settings')},
       {p:'pg-messages',     i:'💬', l:t('nav.messages'), badge:true},
     ],
@@ -993,16 +1012,19 @@ function getNavs(){
       {p:'pg-cashier-avail',  i:'📦', l:t('nav.foodStock')},
       {p:'pg-cashier-waiters',i:'👥', l:t('nav.waiterStatus')},
       {p:'pg-cashier-trends', i:'📈', l:t('nav.waiterTrends')},
+      {p:'pg-attendance',     i:'🕒', l:t('nav.attendance')},
       {p:'pg-messages',       i:'💬', l:t('nav.messages'), badge:true},
     ],
     Waiter:[
       {p:'pg-waiter-orders',i:'📋',l:t('nav.myOrders')},
       {p:'pg-waiter-new',   i:'➕',l:t('nav.newOrder')},
+      {p:'pg-attendance',   i:'🕒',l:t('nav.attendance')},
       {p:'pg-messages',     i:'💬',l:t('nav.messages'), badge:true},
     ],
     Kitchen:[
       {p:'pg-kitchen',   i:'👨‍🍳',l:t('nav.kitchen')},
       {p:'pg-kit-avail', i:'📦',l:t('nav.availability')},
+      {p:'pg-attendance',i:'🕒',l:t('nav.attendance')},
       {p:'pg-messages',  i:'💬',l:t('nav.messages'), badge:true},
     ],
   };
@@ -1055,6 +1077,7 @@ function renderPage(pid){
     'pg-admin-reports':  renderReports,
     'pg-admin-roles':    renderRoleStats,
     'pg-admin-settings': renderAdminSettings,
+    'pg-attendance':     renderAttendance,
     'pg-messages':       renderMessages,
   }[pid]||function(){})();
   applyStaticI18n();
@@ -1201,13 +1224,24 @@ async function renderWaiterNew(){
         <div class="food-info">
           <div class="food-name">${item.name}</div>
           <div class="food-price">${fmtTZS(item.price)}</div>
-          ${!item.is_available?`<div class="food-oos">${t('menu.outOfStock')}</div>`:(item.low_stock?`<div class="food-low">⚠️ ${t('menu.lowStock')}</div>`:'')}
+          ${!item.is_available?`<div class="food-oos">${t('menu.outOfStock')}</div>`:`<div class="muted" style="font-size:.72rem">${t('menu.remaining')}: ${item.stock}</div>`}
         </div>
       </div>`).join('');
   }catch(e){gridEl.innerHTML=`<p class="t-danger">${e.message}</p>`;}
 
+  renderTablePicker();
   renderCart();
 }
+function renderTablePicker(){
+  const el=document.getElementById('table-picker');
+  if(!el)return;
+  let html='';
+  for(let n=1;n<=20;n++){
+    html+=`<button class="cat-tab ${SELECTED_TABLE===n?'active':''}" style="min-width:44px" onclick="selectTable(${n})">${n}</button>`;
+  }
+  el.innerHTML=html;
+}
+function selectTable(n){SELECTED_TABLE=(SELECTED_TABLE===n?null:n);renderTablePicker();}
 
 function selCat(id){SEL_CAT=id;MENU_CACHE=[];renderWaiterNew();}
 
@@ -1240,10 +1274,11 @@ function renderCart(){
 
 async function sendOrder(){
   if(!CART.length){toast('Error',t('order.addItemsFirst'),'error');return;}
+  if(!SELECTED_TABLE){toast('Error',t('order.pickTableFirst'),'error');return;}
   const notes=document.getElementById('waiter-notes').value.trim();
   try{
-    await API.createOrder({items:CART.map(c=>({menu_item_id:c.menu_item_id,quantity:c.quantity})),notes});
-    CART=[];
+    await API.createOrder({items:CART.map(c=>({menu_item_id:c.menu_item_id,quantity:c.quantity})),notes,table_number:SELECTED_TABLE});
+    CART=[];SELECTED_TABLE=null;
     toast('Order Sent!','Order submitted — cashier must approve before kitchen','success');
     showPage('pg-waiter-orders');
   }catch(e){toast('Error',e.message,'error');}
@@ -1264,39 +1299,45 @@ async function renderKitchen(){
   }catch(e){el.innerHTML=`<div class="empty-state"><span class="es-i">⚠️</span><p>${e.message}</p></div>`;}
 }
 
-// Shared markup for a food item's availability + low-stock card,
-// used by both Kitchen's Availability page and Cashier's Food Stock page.
-function stockCardHtml(item){
+// Shared markup for a food item's stock card. When editable=true (Kitchen),
+// shows a number input so Kitchen can post/update today's available
+// quantity each morning. When editable=false (Cashier's read-only Food
+// Stock view), it's just a live status display.
+function stockCardHtml(item,editable){
+  const posted=item.posted_today;
+  const stock=item.stock||0;
   return`
-      <div class="avail-card ${item.is_available?'':'oos'} ${item.low_stock?'low':''}">
+      <div class="avail-card ${stock>0?'':'oos'}">
         <div style="font-size:2.5rem">${item.icon}</div>
         <div class="fw8 mt-8" style="font-size:.9rem">${item.name}</div>
         <div class="muted mb-8">${fmtTZS(item.price)}</div>
-        ${item.low_stock?`<div class="food-low mb-8">⚠️ ${t('menu.lowStock')}</div>`:''}
-        <div class="flex gap-6 jc-c" style="flex-wrap:wrap">
-          ${item.is_available
-            ?`<button class="btn btn-danger btn-sm" onclick="toggleAvail(${item.id},false)">${t('menu.markOOS')}</button>`
-            :`<button class="btn btn-success btn-sm" onclick="toggleAvail(${item.id},true)">${t('menu.markAvail')}</button>`}
-          ${item.low_stock
-            ?`<button class="btn btn-outline btn-sm" onclick="toggleLowStock(${item.id},false)">✅ ${t('menu.stockOk')}</button>`
-            :`<button class="btn btn-dark btn-sm" onclick="toggleLowStock(${item.id},true)">⚠️ ${t('menu.markLow')}</button>`}
-        </div>
+        ${posted
+          ?`<div class="${stock>0?'':'food-oos'} fw8 mb-8">${stock>0?`✅ ${t('menu.remaining')}: ${stock}`:`⛔ ${t('menu.outOfStock')}`}</div>`
+          :`<div class="food-oos mb-8">⛔ ${t('menu.notPostedToday')}</div>`}
+        ${editable?`
+          <div class="flex gap-6 jc-c ai-c" style="flex-wrap:wrap">
+            <input type="number" min="0" class="input" style="width:80px;text-align:center;padding:6px" id="stock-input-${item.id}" value="${stock}">
+            <button class="btn btn-gold btn-sm" onclick="postStockAction(${item.id})">📦 ${t('kitchen.postStock')}</button>
+          </div>`:''}
       </div>`;
 }
 async function renderAvail(){
   const el=document.getElementById('avail-grid');el.innerHTML=`<div class="spinner"></div>`;
   try{
     const menu=await getMenu();
-    el.innerHTML=menu.map(stockCardHtml).join('');
+    el.innerHTML=menu.map(i=>stockCardHtml(i,true)).join('');
   }catch(e){el.innerHTML=`<p class="t-danger">${e.message}</p>`;}
 }
-async function toggleAvail(id,avail){
-  try{await API.updateMenu(id,{is_available:avail});MENU_CACHE=[];toast('Updated',avail?'Marked available':'Marked out of stock','success');refreshPage();}
-  catch(e){toast('Error',e.message,'error');}
-}
-async function toggleLowStock(id,low){
-  try{await API.updateMenu(id,{low_stock:low});MENU_CACHE=[];toast('Updated',low?'Flagged as low stock':'Stock marked OK','success');refreshPage();}
-  catch(e){toast('Error',e.message,'error');}
+async function postStockAction(id){
+  const input=document.getElementById('stock-input-'+id);
+  const count=parseInt(input.value,10);
+  if(isNaN(count)||count<0){toast('Error','Idadi si sahihi','error');return;}
+  try{
+    await API.postStock(id,count);
+    MENU_CACHE=[];
+    toast('Imesasishwa',count>0?`${t('kitchen.stockSetTo')} ${count}`:t('menu.outOfStock'),'success');
+    refreshPage();
+  }catch(e){toast('Error',e.message,'error');}
 }
 async function kitchenAction(id,status){
   try{await API.setStatus(id,status);renderKitchen();}catch(e){toast('Error',e.message,'error');}
@@ -1316,7 +1357,7 @@ async function renderCashierAvail(){
     <div class="grid g3" id="cashier-avail-grid"><div class="spinner"></div></div>`;
   try{
     const menu=await getMenu();
-    document.getElementById('cashier-avail-grid').innerHTML=menu.map(stockCardHtml).join('');
+    document.getElementById('cashier-avail-grid').innerHTML=menu.map(i=>stockCardHtml(i,false)).join('');
   }catch(e){
     document.getElementById('cashier-avail-grid').innerHTML=`<p class="t-danger">${e.message}</p>`;
   }
@@ -1398,7 +1439,6 @@ async function openPayModal(id){
         </div>
         <div style="border-top:1px solid rgba(212,175,55,.15);padding-top:6px;margin-top:4px">
           <div class="flex-b muted"><span>${t('receipt.subtotal')}</span><span>${fmtTZS(o.subtotal)}</span></div>
-          ${o.vat_applied?`<div class="flex-b muted"><span>${t('receipt.vat')}</span><span>${fmtTZS(o.tax_amount)}</span></div>`:'<div class="flex-b muted" style="color:#A5D6A7"><span>✓ VAT Exempt</span><span>TZS 0</span></div>'}
           <div class="flex-b fw8 tg mt-8" style="font-size:1.1rem"><span>${t('receipt.total')}</span><span>${fmtTZS(o.total_amount)}</span></div>
         </div>
       </div>`;
@@ -1434,7 +1474,6 @@ function renderReceiptHTML(o){
       ${(o.items||[]).map(i=>`<div class="rcp-item"><div class="flex-b"><span>${i.icon} ${i.item_name}</span><span>×${i.quantity}</span></div><div class="rcp-item-detail"><span>${fmtTZS(i.unit_price)} each</span><span>${fmtTZS(i.line_total)}</span></div></div>`).join('')}
       <hr class="rcp-dash">
       <div class="rcp-row"><span>${t('receipt.subtotal')}:</span><span>${fmtTZS(o.subtotal)}</span></div>
-      ${o.vat_applied?`<div class="rcp-row"><span>${t('receipt.vat')}:</span><span>${fmtTZS(o.tax_amount)}</span></div>`:'<div class="rcp-row" style="color:#2E7D32"><span>✓ VAT Exempt:</span><span>TZS 0</span></div>'}
       <div class="rcp-total"><span>TOTAL PAID</span><span>${fmtTZS(o.total_amount)}</span></div>
       <div class="rcp-ft">${t('receipt.thankYou')}<br>⭐ Please visit again ⭐</div>
     </div>`;
@@ -1562,7 +1601,7 @@ function orderCard(o,role){
       <div class="oc-hd">
         <div>
           <div class="oc-num">${o.order_number}</div>
-          <div class="muted" style="font-size:.72rem">👤 ${o.waiter_name||'—'} • ${age(o.created_at)}</div>
+          <div class="muted" style="font-size:.72rem">👤 ${o.waiter_name||'—'}${o.table_number?` • 🪑 ${t('order.table')} ${o.table_number}`:''} • ${age(o.created_at)}</div>
         </div>
         ${statusBadge(o.status)}
       </div>
@@ -1613,10 +1652,10 @@ async function renderAdminDash(){
         <div class="t-danger fw8">⚠️ ${age(o.plates_taken_at)}</div>
       </div>`).join(''):`<div class="empty-state" style="padding:20px"><span class="es-i">✅</span><p>No plate alerts</p></div>`;
     // Low stock
-    document.getElementById('admin-lowstock').innerHTML=d.lowStockItems?.length?d.lowStockItems.map(i=>`
+    document.getElementById('admin-lowstock').innerHTML=d.outOfStockItems?.length?d.outOfStockItems.map(i=>`
       <div class="flex-b" style="padding:6px 0;border-bottom:1px solid rgba(212,175,55,.07)">
         <div>${i.icon} ${i.name}</div>
-        <span class="food-low">⚠️ ${t('menu.lowStock')}</span>
+        <span class="food-oos">⛔ ${t('menu.outOfStock')}</span>
       </div>`).join(''):`<div class="empty-state" style="padding:20px"><span class="es-i">✅</span><p>${t('admin.noLowStock')}</p></div>`;
   }catch(e){toast('Error','Could not load dashboard: '+e.message,'error');}
 }
@@ -1634,16 +1673,13 @@ async function renderAdminMenu(){
       `<button class="cat-tab" onclick="addCategoryPrompt()">＋ Category</button>`;
     const filtered=ADMIN_CAT_FILTER?menu.filter(m=>m.category_id===ADMIN_CAT_FILTER):menu;
     document.getElementById('admin-menu-grid').innerHTML=filtered.map(item=>`
-      <div class="avail-card ${item.low_stock?'low':''}">
+      <div class="avail-card ${item.stock>0?'':'oos'}">
         <div style="font-size:2.5rem">${item.icon}</div>
         <div class="fw8 mt-8">${item.name}</div>
         <div class="muted mb-4">${item.category_name}</div>
         <div class="tg fw8 mb-8">${fmtTZS(item.price)}</div>
-        <div class="muted mb-8" style="font-size:.75rem">Cost: ${fmtTZS(item.cost_price)}</div>
-        ${item.low_stock?`<div class="food-low mb-8">⚠️ ${t('menu.lowStock')}</div>`:''}
+        <div class="muted mb-8" style="font-size:.75rem">${item.posted_today?(item.stock>0?`✅ ${t('menu.remaining')}: ${item.stock}`:`⛔ ${t('menu.outOfStock')}`):`⛔ ${t('menu.notPostedToday')}`}</div>
         <div class="flex gap-6 jc-c" style="flex-wrap:wrap">
-          ${item.is_available?`<button class="btn btn-danger btn-sm" onclick="toggleAvailAdmin(${item.id},false)">OOS</button>`:`<button class="btn btn-success btn-sm" onclick="toggleAvailAdmin(${item.id},true)">Available</button>`}
-          ${item.low_stock?`<button class="btn btn-outline btn-sm" onclick="toggleLowStockAdmin(${item.id},false)">✅ ${t('menu.stockOk')}</button>`:`<button class="btn btn-dark btn-sm" onclick="toggleLowStockAdmin(${item.id},true)">⚠️ ${t('menu.markLow')}</button>`}
           <button class="btn btn-dark btn-sm" onclick="editMenuItem(${item.id})">✏️</button>
           <button class="btn btn-danger btn-sm" onclick="deleteMenuItem(${item.id},'${item.name.replace(/'/g,"\\'")}')">🗑️</button>
         </div>
@@ -1651,22 +1687,20 @@ async function renderAdminMenu(){
   }catch(e){toast('Error',e.message,'error');}
 }
 function adminCatFilter(id){ADMIN_CAT_FILTER=id;MENU_CACHE=[];renderAdminMenu();}
-async function toggleAvailAdmin(id,avail){try{await API.updateMenu(id,{is_available:avail});MENU_CACHE=[];renderAdminMenu();}catch(e){toast('Error',e.message,'error');}}
-async function toggleLowStockAdmin(id,low){try{await API.updateMenu(id,{low_stock:low});MENU_CACHE=[];renderAdminMenu();}catch(e){toast('Error',e.message,'error');}}
 async function addCategoryPrompt(){const name=prompt('Category name:');if(!name)return;const icon=prompt('Icon emoji:','🍽️')||'🍽️';try{await API.addCat({name,icon});MENU_CACHE=[];renderAdminMenu();}catch(e){toast('Error',e.message,'error');}}
 async function openMenuModal(editId=null){
   document.getElementById('menu-edit-id').value=editId||'';
   document.getElementById('menu-modal-title').textContent=editId?'Edit Item':'Add Menu Item';
   const cats=await API.getCats();
   document.getElementById('menu-cat').innerHTML=(cats.categories||[]).map(c=>`<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
-  if(editId){const item=MENU_CACHE.find(m=>m.id===editId);if(item){document.getElementById('menu-cat').value=item.category_id;document.getElementById('menu-name').value=item.name;document.getElementById('menu-icon').value=item.icon;document.getElementById('menu-price').value=item.price;document.getElementById('menu-cost').value=item.cost_price;document.getElementById('menu-desc').value=item.description||'';}}
-  else{['menu-name','menu-icon','menu-price','menu-cost','menu-desc'].forEach(id=>document.getElementById(id).value='');}
+  if(editId){const item=MENU_CACHE.find(m=>m.id===editId);if(item){document.getElementById('menu-cat').value=item.category_id;document.getElementById('menu-name').value=item.name;document.getElementById('menu-icon').value=item.icon;document.getElementById('menu-price').value=item.price;document.getElementById('menu-desc').value=item.description||'';}}
+  else{['menu-name','menu-icon','menu-price','menu-desc'].forEach(id=>document.getElementById(id).value='');}
   openModal('modal-menu');
 }
 function editMenuItem(id){openMenuModal(id);}
 async function saveMenuItem(){
   const editId=document.getElementById('menu-edit-id').value;
-  const data={category_id:+document.getElementById('menu-cat').value,name:document.getElementById('menu-name').value,icon:document.getElementById('menu-icon').value||'🍽️',price:+document.getElementById('menu-price').value,cost_price:+document.getElementById('menu-cost').value,description:document.getElementById('menu-desc').value};
+  const data={category_id:+document.getElementById('menu-cat').value,name:document.getElementById('menu-name').value,icon:document.getElementById('menu-icon').value||'🍽️',price:+document.getElementById('menu-price').value,description:document.getElementById('menu-desc').value};
   try{if(editId)await API.updateMenu(+editId,data);else await API.createMenu(data);MENU_CACHE=[];closeModal('modal-menu');renderAdminMenu();}catch(e){toast('Error',e.message,'error');}
 }
 async function deleteMenuItem(id,name){openConfirm('Delete Item',`Delete "${name}"?`,async()=>{try{await API.deleteMenu(id);MENU_CACHE=[];renderAdminMenu();}catch(e){toast('Error',e.message,'error');}});}
@@ -1726,7 +1760,7 @@ async function loadReports(){
         <div class="stat-card"><div class="stat-icon">📋</div><div class="stat-value">${summary.total_orders}</div><div class="stat-label">Total Orders</div></div>
         <div class="stat-card green"><div class="stat-icon">💰</div><div class="stat-value">${fmtTZS(summary.revenue)}</div><div class="stat-label">Revenue</div></div>
         <div class="stat-card blue"><div class="stat-icon">📊</div><div class="stat-value">${fmtTZS(summary.subtotal)}</div><div class="stat-label">Subtotal</div></div>
-        <div class="stat-card red"><div class="stat-icon">🏛️</div><div class="stat-value">${fmtTZS(summary.tax)}</div><div class="stat-label">VAT Collected</div></div>
+
       </div>
       <div class="grid g2">
         <div class="card"><div class="card-hd"><span class="card-hd-title">Payment Methods</span></div>
@@ -1749,6 +1783,60 @@ function msgTab(tab,btn){
   document.getElementById('msg-inbox').style.display=tab==='inbox'?'block':'none';
   document.getElementById('msg-sent').style.display=tab==='sent'?'block':'none';
 }
+
+// ══════════════════════════════════════════════════════════════
+// ATTENDANCE (clock in / clock out) — all roles
+// ══════════════════════════════════════════════════════════════
+async function renderAttendance(){
+  const el=document.getElementById('pg-attendance');
+  if(!el)return;
+  el.innerHTML=`<div class="page-hd"><div class="page-title">${t('att.title')}</div></div><div class="spinner"></div>`;
+  try{
+    const d=await API.getMyAttendance();
+    const today=d.today;
+    const clockedIn=today&&today.clock_in_at&&!today.clock_out_at;
+    const doneToday=today&&today.clock_in_at&&today.clock_out_at;
+    let html=`
+      <div class="page-hd"><div class="page-title">${t('att.title')}</div></div>
+      <div class="card mb-12">
+        <div class="card-hd"><span class="card-hd-title">${t('att.today')}</span></div>
+        <div class="card-bd tc">
+          ${!today||!today.clock_in_at?`
+            <p class="muted mb-12">${t('att.notClockedIn')}</p>
+            <button class="btn btn-gold btn-lg" onclick="doClockIn()">${t('att.clockIn')}</button>
+          `:doneToday?`
+            <p class="muted mb-4">🟢 ${fmtTime(today.clock_in_at)} → 🔴 ${fmtTime(today.clock_out_at)}</p>
+          `:`
+            <p class="muted mb-12">🟢 ${t('att.clockIn')}: ${fmtTime(today.clock_in_at)}</p>
+            <button class="btn btn-danger btn-lg" onclick="doClockOut()">${t('att.clockOut')}</button>
+          `}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-title">${t('att.history')}</span></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>${t('att.date')}</th><th>${t('att.timeIn')}</th><th>${t('att.timeOut')}</th></tr></thead><tbody>
+          ${(d.records||[]).map(r=>`<tr><td>${r.date}</td><td>${r.clock_in_at?fmtTime(r.clock_in_at):'—'}</td><td>${r.clock_out_at?fmtTime(r.clock_out_at):'—'}</td></tr>`).join('')||`<tr><td colspan="3" class="muted tc">—</td></tr>`}
+        </tbody></table></div>
+      </div>`;
+    if(SESSION.role==='Admin'){
+      try{
+        const all=await API.getAllAttendance();
+        html+=`
+      <div class="card mt-12">
+        <div class="card-hd"><span class="card-hd-title">${t('att.allStaff')}</span></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>${t('att.staffName')}</th><th>${t('att.date')}</th><th>${t('att.timeIn')}</th><th>${t('att.timeOut')}</th></tr></thead><tbody>
+          ${(all.records||[]).map(r=>`<tr><td>${r.staff_name}</td><td>${r.date}</td><td>${r.clock_in_at?fmtTime(r.clock_in_at):'—'}</td><td>${r.clock_out_at?fmtTime(r.clock_out_at):'—'}</td></tr>`).join('')||`<tr><td colspan="4" class="muted tc">—</td></tr>`}
+        </tbody></table></div>
+      </div>`;
+      }catch(e){}
+    }
+    el.innerHTML=html;
+  }catch(e){
+    el.innerHTML+=`<div class="empty-state"><span class="es-i">⚠️</span><p>${e.message}</p></div>`;
+  }
+}
+async function doClockIn(){try{await API.clockIn();toast('✅','Umeingia kazini','success');renderAttendance();}catch(e){toast('Error',e.message,'error');}}
+async function doClockOut(){try{await API.clockOut();toast('🚪','Umetoka kazini','success');renderAttendance();}catch(e){toast('Error',e.message,'error');}}
 
 async function renderMessages(){
   const inboxEl=document.getElementById('msg-inbox');
@@ -1871,7 +1959,7 @@ async function renderRoleStats(){
 }
 
 // ══════════════════════════════════════════════════════════════
-// ADMIN SETTINGS (VAT toggle)
+// ADMIN SETTINGS (Lipa Namba)
 // ══════════════════════════════════════════════════════════════
 async function renderAdminSettings(){
   const el=document.getElementById('pg-admin-settings');
@@ -1880,26 +1968,19 @@ async function renderAdminSettings(){
   try{
     const d=await API.getSettings();
     SETTINGS_CACHE=d.settings;
-    const vatEnabled=d.settings.vat_enabled==='1';
-    const vatRate=parseFloat(d.settings.vat_rate||'0.18');
+    const lipaNamba=d.settings.lipa_namba||'';
 
     el.innerHTML=`
       <div class="page-hd"><div class="page-title">${t('settings.title')}</div></div>
       <div class="card mb-12">
-        <div class="card-hd"><span class="card-hd-title">⚙️ ${t('admin.vatSetting')}</span></div>
+        <div class="card-hd"><span class="card-hd-title">💳 ${t('admin.lipaNamba')}</span></div>
         <div class="card-bd">
-          <div class="toggle-switch">
-            <label><strong>${t('admin.vatEnabled')}</strong></label>
-            <button class="sw-track ${vatEnabled?'on':''}" id="vat-toggle" onclick="toggleVATSwitch(this)"></button>
+          <div class="fg"><label style="font-size:.8rem;color:var(--gold-d)">${t('admin.lipaNambaLabel')}</label>
+            <input class="input" id="lipa-namba-input" type="text" placeholder="e.g. 123456" value="${lipaNamba}">
           </div>
-          <div class="flex gap-8 ai-c mt-8">
-            <div class="fg" style="flex:1;margin:0"><label style="font-size:.8rem;color:var(--gold-d)">${t('admin.vatRate')} (e.g. 0.18 = 18%)</label>
-              <input class="input" id="vat-rate-input" type="number" step="0.01" min="0" max="1" value="${vatRate}">
-            </div>
-            <button class="btn btn-gold mt-8" onclick="saveVATSettings()">${t('admin.vatSave')}</button>
-          </div>
+          <button class="btn btn-gold mt-8" onclick="saveLipaNamba()">${t('admin.lipaSave')}</button>
           <div class="muted mt-8" style="font-size:.8rem">
-            💡 Changes apply to new orders only. Existing paid orders keep their original VAT amount for historical accuracy.
+            💡 ${t('admin.lipaHint')}
           </div>
         </div>
       </div>`;
@@ -1907,13 +1988,12 @@ async function renderAdminSettings(){
     el.innerHTML+=`<div class="empty-state"><span class="es-i">⚠️</span><p>${e.message}</p></div>`;
   }
 }
-function toggleVATSwitch(btn){btn.classList.toggle('on');}
-async function saveVATSettings(){
-  const vatEnabled=document.getElementById('vat-toggle').classList.contains('on');
-  const vatRate=parseFloat(document.getElementById('vat-rate-input').value)||0.18;
+async function saveLipaNamba(){
+  const lipaNamba=document.getElementById('lipa-namba-input').value.trim();
   try{
-    await API.updateSettings({vat_enabled:vatEnabled,vat_rate:vatRate});
-    toast('Saved',t('admin.vatSaved'),'success');
+    await API.updateSettings({lipa_namba:lipaNamba});
+    SETTINGS_CACHE.lipa_namba=lipaNamba;
+    toast('Saved',t('admin.lipaSaved'),'success');
   }catch(e){toast('Error',e.message,'error');}
 }
 
@@ -1987,7 +2067,7 @@ async function renderCashierKitchen(){
 // ══════════════════════════════════════════════════════════════
 // CASHIER: WAITER STATUS + ASSIGN ORDER
 // ══════════════════════════════════════════════════════════════
-let ASSIGN_WAITER_ID=null,ASSIGN_CART=[];
+let ASSIGN_WAITER_ID=null,ASSIGN_CART=[],ASSIGN_TABLE=null;
 
 async function renderCashierWaiters(){
   const el=document.getElementById('pg-cashier-waiters');
@@ -2064,7 +2144,7 @@ async function openAssignOrder(waiterId, waiterName){
                 <div style="font-size:2rem">${item.icon}</div>
                 <div class="fw8 mt-4" style="font-size:.82rem">${item.name}</div>
                 <div class="tg fw8 mt-4">${fmtTZS(item.price)}</div>
-                ${!item.is_available?'<div class="muted" style="font-size:.72rem">Out of stock</div>':item.low_stock?`<div class="food-low" style="font-size:.7rem">⚠️ ${t('menu.lowStock')}</div>`:''}
+                ${!item.is_available?`<div class="muted" style="font-size:.72rem">${t('menu.outOfStock')}</div>`:`<div class="muted" style="font-size:.7rem">${t('menu.remaining')}: ${item.stock}</div>`}
               </div>`).join('')}
           </div>
         </div>
@@ -2073,6 +2153,7 @@ async function openAssignOrder(waiterId, waiterName){
           <div class="card">
             <div class="card-hd"><span class="card-hd-title">Order for ${waiterName}</span></div>
             <div class="card-bd">
+              <div class="fg"><label>🪑 Table Number</label><div class="cat-tabs" id="assign-table-picker" style="margin-top:4px"></div></div>
               <div id="assign-cart-items"><div class="empty-state" style="padding:20px"><span class="es-i" style="font-size:32px">🛒</span><p>No items yet</p></div></div>
               <div id="assign-cart-total" style="display:none">
                 <div style="height:1px;background:rgba(212,175,55,.15);margin:10px 0"></div>
@@ -2087,6 +2168,7 @@ async function openAssignOrder(waiterId, waiterName){
         </div>
       </div>`;
 
+    renderAssignTablePicker();
     // Store full menu for filtering
     window._ASSIGN_MENU_FULL=menu;
   }catch(e){
@@ -2104,7 +2186,7 @@ function assignCatFilter(catId,btn){
       <div style="font-size:2rem">${item.icon}</div>
       <div class="fw8 mt-4" style="font-size:.82rem">${item.name}</div>
       <div class="tg fw8 mt-4">${fmtTZS(item.price)}</div>
-      ${!item.is_available?'<div class="muted" style="font-size:.72rem">Out of stock</div>':item.low_stock?`<div class="food-low" style="font-size:.7rem">⚠️ ${t('menu.lowStock')}</div>`:''}
+      ${!item.is_available?`<div class="muted" style="font-size:.72rem">${t('menu.outOfStock')}</div>`:`<div class="muted" style="font-size:.7rem">${t('menu.remaining')}: ${item.stock}</div>`}
     </div>`).join('');
 }
 function assignAddItem(id,name,price,icon){
@@ -2138,16 +2220,28 @@ function renderAssignCart(){
     </div>`;}).join('');
   if(tr){tr.style.display='block';document.getElementById('assign-total-val').textContent=fmtTZS(total);}
 }
+function renderAssignTablePicker(){
+  const el=document.getElementById('assign-table-picker');
+  if(!el)return;
+  let html='';
+  for(let n=1;n<=20;n++){
+    html+=`<button class="cat-tab ${ASSIGN_TABLE===n?'active':''}" style="min-width:40px" onclick="selectAssignTable(${n})">${n}</button>`;
+  }
+  el.innerHTML=html;
+}
+function selectAssignTable(n){ASSIGN_TABLE=(ASSIGN_TABLE===n?null:n);renderAssignTablePicker();}
 async function submitAssignOrder(waiterId,waiterName){
   if(!ASSIGN_CART.length){toast('Error','Add items to order first','error');return;}
+  if(!ASSIGN_TABLE){toast('Error',t('order.pickTableFirst'),'error');return;}
   const notes=document.getElementById('assign-notes')?.value.trim()||'';
   try{
     await API.createOrderForWaiter({
       items:ASSIGN_CART.map(c=>({menu_item_id:c.menu_item_id,quantity:c.quantity})),
       notes,
       waiter_id:waiterId,
+      table_number:ASSIGN_TABLE,
     });
-    ASSIGN_CART=[];ASSIGN_WAITER_ID=null;
+    ASSIGN_CART=[];ASSIGN_WAITER_ID=null;ASSIGN_TABLE=null;
     toast('✅ Order Assigned!',`Order sent to kitchen for ${waiterName}`,'success');
     SFX.newOrder();
     renderCashierWaiters();
@@ -2245,7 +2339,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     SESSION=d;
     document.getElementById('login-screen').style.display='none';
     initApp();
-    // Pre-load VAT settings into cache (admin-only, graceful fail for other roles)
+    // Pre-load settings (Lipa Namba) into cache — Admin/Cashier only, graceful fail for other roles
     try{const sd=await API.getSettings();SETTINGS_CACHE=sd.settings||SETTINGS_CACHE;}catch(_){}
   }catch(_){}
 });

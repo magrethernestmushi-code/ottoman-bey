@@ -81,6 +81,11 @@
     markAllRead: function () { return apiCall('POST', '/api/messages/read-all'); },
     getWaiterAvailability: function () { return apiCall('GET', '/api/waiter-availability'); },
     createOrderForWaiter: function (body) { return apiCall('POST', '/api/orders', body); },
+    postStock: function (id, count) { return apiCall('POST', '/api/menu/' + id + '/stock', { count: count }); },
+    clockIn: function () { return apiCall('POST', '/api/attendance/clock-in'); },
+    clockOut: function () { return apiCall('POST', '/api/attendance/clock-out'); },
+    getMyAttendance: function () { return apiCall('GET', '/api/attendance/me'); },
+    getAllAttendance: function () { return apiCall('GET', '/api/attendance'); },
     exportBackup: function () { return apiCall('GET', '/api/backup').then(function (d) { return JSON.stringify(d, null, 2); }); },
     importBackup: function (json) { return apiCall('POST', '/api/backup', typeof json === 'string' ? JSON.parse(json) : json); }
   };

@@ -77,7 +77,18 @@ app.put('/api/menu/:id', handle(req => {
   delete out._item;
   return out;
 }));
+app.post('/api/menu/:id/stock', handle(req => {
+  const out = LOCAL.postStock(req.session, req.params.id, req.body && req.body.count);
+  emitEvent('menu:updated', { item: out.item });
+  return out;
+}));
 app.delete('/api/menu/:id', handle(req => LOCAL.deleteMenu(req.session, req.params.id)));
+
+// ── attendance ────────────────────────────────────────────────────────
+app.post('/api/attendance/clock-in', handle(req => LOCAL.clockIn(req.session)));
+app.post('/api/attendance/clock-out', handle(req => LOCAL.clockOut(req.session)));
+app.get('/api/attendance/me', handle(req => LOCAL.getMyAttendance(req.session)));
+app.get('/api/attendance', handle(req => LOCAL.getAllAttendance(req.session)));
 
 // ── orders ────────────────────────────────────────────────────────────
 app.get('/api/orders', handle(req => LOCAL.getOrders(req.session, req.query)));

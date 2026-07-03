@@ -39,13 +39,14 @@ class HttpError extends Error {
 // ── seed data (same menu as the offline edition) ──────────────────
 function seedDB() {
   const db = {
-    version: 2,
+    version: 3,
     staff: [],
     categories: [],
     menu_items: [],
     orders: [],
     messages: [],
-    settings: { vat_enabled: '1', vat_rate: '0.18' },
+    attendance: [],
+    settings: { lipa_namba: '' },
     _seq: { categories: 0, menu_items: 0 }
   };
   function nextId(kind) { db._seq[kind] += 1; return db._seq[kind]; }
@@ -102,7 +103,7 @@ function seedDB() {
     const id = nextId('menu_items');
     db.menu_items.push({
       id, category_id: catId[row[0]], name: row[1], icon: row[2],
-      price: row[3], cost_price: row[4], is_available: 1, low_stock: 0, description: ''
+      price: row[3], is_available: 0, stock_count: 0, stock_date: null, description: ''
     });
   });
 
@@ -116,12 +117,21 @@ function migrateDB(db) {
   db.orders = db.orders || [];
   db.messages = db.messages || [];
   db.staff = db.staff || [];
-  db.settings = db.settings || { vat_enabled: '1', vat_rate: '0.18' };
+  db.settings = db.settings || { lipa_namba: '' };
+  if (typeof db.settings.lipa_namba === 'undefined') db.settings.lipa_namba = '';
+  delete db.settings.vat_enabled;
+  delete db.settings.vat_rate;
+  db.attendance = db.attendance || [];
   db._seq = db._seq || {};
   if (typeof db._seq.categories === 'undefined') db._seq.categories = db.categories.reduce((m, c) => Math.max(m, c.id || 0), 0);
   if (typeof db._seq.menu_items === 'undefined') db._seq.menu_items = db.menu_items.reduce((m, i) => Math.max(m, i.id || 0), 0);
-  db.menu_items.forEach(mi => { if (typeof mi.low_stock === 'undefined') mi.low_stock = 0; });
-  db.version = 2;
+  db.menu_items.forEach(mi => {
+    if (typeof mi.stock_count === 'undefined') mi.stock_count = 0;
+    if (typeof mi.stock_date === 'undefined') mi.stock_date = null;
+    delete mi.cost_price;
+    delete mi.low_stock;
+  });
+  db.version = 3;
   return db;
 }
 
@@ -292,7 +302,7 @@ LOCAL.dashboard = (sess) => {
     .sort((a, b) => a.plates_taken_at.localeCompare(b.plates_taken_at))
     .map(o => { const waiter = findStaff(o.waiter_id) || {}; const e = Object.assign({}, o); e.waiter_name = waiter.full_name; return e; });
 
-  const lowStockItems = db.menu_items.filter(m => m.low_stock).map(m => ({ id: m.id, name: m.name, icon: m.icon }));
+  const outOfStockItems = db.menu_items.filter(m => m.stock_date === today && m.stock_count <= 0).map(m => ({ id: m.id, name: m.name, icon: m.icon }));
 
   const waiterStats = db.staff.filter(s => s.role === 'Waiter' && s.is_active).map(s => {
     const todays = db.orders.filter(o => o.waiter_id === s.id && dateOf(o.created_at) === today);
@@ -318,20 +328,15 @@ LOCAL.dashboard = (sess) => {
     return { id: s.id, full_name: s.full_name, approvals_today: approvalsToday, payments_processed: paymentsToday, plate_returns_approved: plateReturns };
   });
 
-  return { revenue, ordersToday, active, staff: staffCount, bestSelling, recentOrders, plateAlerts, lowStockItems,
+  return { revenue, ordersToday, active, staff: staffCount, bestSelling, recentOrders, plateAlerts, outOfStockItems,
     roleStats: { waiters: waiterStats, kitchen: kitchenStats, cashiers: cashierStats } };
 };
 
-LOCAL.getSettings = (sess) => { requireRole(sess, 'Admin'); return { settings: Object.assign({}, loadDB().settings) }; };
+LOCAL.getSettings = (sess) => { requireRole(sess, 'Admin', 'Cashier'); return { settings: Object.assign({}, loadDB().settings) }; };
 LOCAL.updateSettings = (sess, body) => {
   requireRole(sess, 'Admin');
   const db = loadDB(); body = body || {};
-  if (typeof body.vat_enabled !== 'undefined') db.settings.vat_enabled = body.vat_enabled ? '1' : '0';
-  if (typeof body.vat_rate !== 'undefined') {
-    const rate = parseFloat(body.vat_rate);
-    if (isNaN(rate) || rate < 0 || rate > 1) throw new HttpError(400, 'vat_rate must be a decimal between 0 and 1 (e.g. 0.18 for 18%)');
-    db.settings.vat_rate = String(rate);
-  }
+  if (typeof body.lipa_namba !== 'undefined') db.settings.lipa_namba = String(body.lipa_namba).trim();
   saveDB();
   return { settings: Object.assign({}, db.settings) };
 };
@@ -419,10 +424,15 @@ LOCAL.getReports = (sess, from, to) => {
 
 LOCAL.getMenu = (sess) => {
   requireSession(sess);
-  const db = loadDB();
+  const db = loadDB(), today = todayStr();
   const items = db.menu_items.map(mi => {
     const c = db.categories.find(c => c.id === mi.category_id) || {};
-    return Object.assign({}, mi, { category_name: c.name, cat_icon: c.icon, _sort: c.sort_order || 0 });
+    const postedToday = mi.stock_date === today;
+    const stock = postedToday ? mi.stock_count : 0;
+    return Object.assign({}, mi, {
+      category_name: c.name, cat_icon: c.icon, _sort: c.sort_order || 0,
+      stock, posted_today: postedToday, is_available: stock > 0 ? 1 : 0
+    });
   }).sort((a, b) => a._sort - b._sort || a.name.localeCompare(b.name));
   items.forEach(i => delete i._sort);
   return { items };
@@ -447,21 +457,18 @@ LOCAL.createMenu = (sess, body) => {
   db._seq.menu_items += 1;
   const id = db._seq.menu_items;
   db.menu_items.push({ id, category_id: Number(body.category_id), name: body.name, icon: body.icon || '🍽️',
-    price: Number(body.price), cost_price: Number(body.cost_price) || 0, is_available: 1, low_stock: 0, description: body.description || '' });
+    price: Number(body.price), is_available: 0, stock_count: 0, stock_date: null, description: body.description || '' });
   saveDB();
   return { ok: true, id };
 };
 LOCAL.updateMenu = (sess, id, body) => {
-  requireRole(sess, ...MENU_MANAGE_ROLES);
+  requireRole(sess, 'Admin');
   body = body || {};
   const mi = findMenuItem(id);
   let changed = null;
   if (mi) {
-    if (typeof body.is_available !== 'undefined') mi.is_available = body.is_available ? 1 : 0;
-    if (typeof body.low_stock !== 'undefined') mi.low_stock = body.low_stock ? 1 : 0;
     if (body.name) mi.name = body.name;
     if (body.price) mi.price = Number(body.price);
-    if (body.cost_price) mi.cost_price = Number(body.cost_price);
     if (body.icon) mi.icon = body.icon;
     if (body.category_id) mi.category_id = Number(body.category_id);
     if (body.description) mi.description = body.description;
@@ -476,6 +483,23 @@ LOCAL.deleteMenu = (sess, id) => {
   db.menu_items = db.menu_items.filter(m => m.id !== Number(id));
   saveDB();
   return { ok: true };
+};
+// Kitchen posts today's available quantity for a dish each morning (and any
+// time during the day) — e.g. "Pilau, 15 servings ready". Stock counts down
+// automatically as orders are placed, and resets to 0/unposted the next day
+// until Kitchen posts it again.
+LOCAL.postStock = (sess, id, count) => {
+  requireRole(sess, 'Kitchen', 'Admin');
+  const mi = findMenuItem(id);
+  if (!mi) throw new HttpError(404, 'Not found');
+  const n = Number(count);
+  if (isNaN(n) || n < 0) throw new HttpError(400, 'Idadi si sahihi');
+  mi.stock_count = Math.trunc(n);
+  mi.stock_date = todayStr();
+  mi.is_available = mi.stock_count > 0 ? 1 : 0;
+  saveDB();
+  const c = loadDB().categories.find(c => c.id === mi.category_id) || {};
+  return { ok: true, item: Object.assign({}, mi, { category_name: c.name, cat_icon: c.icon, stock: mi.stock_count, posted_today: true }) };
 };
 
 LOCAL.getOrders = (sess, query) => {
@@ -501,36 +525,59 @@ LOCAL.getOrder = (sess, id) => {
 LOCAL.createOrder = (sess, body) => {
   requireRole(sess, 'Waiter', 'Cashier', 'Admin');
   body = body || {};
-  const { items, notes, waiter_id } = body;
+  const { items, notes, waiter_id, table_number } = body;
   if (!items || !items.length) throw new HttpError(400, 'At least one item is required');
-  const db = loadDB();
+  const db = loadDB(), today = todayStr();
+
+  let tableNo = null;
+  if (table_number !== undefined && table_number !== null && table_number !== '') {
+    tableNo = Number(table_number);
+    if (!Number.isInteger(tableNo) || tableNo < 1 || tableNo > 20) throw new HttpError(400, 'Namba ya meza lazima iwe kati ya 1 na 20');
+  }
 
   const orderId = uuid();
   const orderNum = 'ORD-' + Date.now().toString().slice(-6);
   let subtotal = 0;
   const assignedWaiter = ((sess.role === 'Cashier' || sess.role === 'Admin') && waiter_id) ? waiter_id : sess.id;
 
+  // Validate stock availability for every line first (so a failed order
+  // doesn't partially decrement some items).
+  const grouped = {};
+  items.forEach(item => {
+    grouped[item.menu_item_id] = (grouped[item.menu_item_id] || 0) + Number(item.quantity);
+  });
+  Object.keys(grouped).forEach(menuItemId => {
+    const mi = findMenuItem(menuItemId);
+    if (!mi) throw new HttpError(400, 'Kipengele hakipatikani');
+    const postedToday = mi.stock_date === today;
+    const available = postedToday ? mi.stock_count : 0;
+    if (!available || available < grouped[menuItemId]) {
+      throw new HttpError(400, mi.name + ' hazitoshi (zilizobaki: ' + (available || 0) + ')');
+    }
+  });
+
   const resolvedItems = items.map(item => {
     const mi = findMenuItem(item.menu_item_id);
-    if (!mi || !mi.is_available) throw new HttpError(400, 'Item ' + item.menu_item_id + ' is not available');
     const lineTotal = mi.price * item.quantity;
     subtotal += lineTotal;
     return { menu_item_id: mi.id, quantity: item.quantity, unit_price: mi.price, line_total: lineTotal };
   });
+  // Decrement stock now that every line has passed validation.
+  Object.keys(grouped).forEach(menuItemId => {
+    const mi = findMenuItem(menuItemId);
+    mi.stock_count = Math.max(0, mi.stock_count - grouped[menuItemId]);
+  });
 
-  const vatEnabled = db.settings.vat_enabled ? db.settings.vat_enabled === '1' : true;
-  const vatRate = db.settings.vat_rate ? parseFloat(db.settings.vat_rate) : 0.18;
-  const tax = vatEnabled ? round2(subtotal * vatRate) : 0;
-  const total = round2(subtotal + tax);
+  const total = round2(subtotal);
   const initialStatus = (sess.role === 'Cashier' || sess.role === 'Admin') ? 'confirmed' : 'pending_payment';
   const now = nowISO();
 
   db.orders.push({
-    id: orderId, order_number: orderNum, waiter_id: assignedWaiter,
-    status: initialStatus, payment_method: null, subtotal, tax_amount: tax, total_amount: total,
+    id: orderId, order_number: orderNum, waiter_id: assignedWaiter, table_number: tableNo,
+    status: initialStatus, payment_method: null, subtotal, tax_amount: 0, total_amount: total,
     notes: notes || '', plates_taken_at: null, plates_returned: 0, plates_returned_at: null,
     plate_return_approved_by: null, created_at: now, updated_at: now,
-    prep_started_at: null, prep_ready_at: null, vat_applied: vatEnabled ? 1 : 0, items: resolvedItems
+    prep_started_at: null, prep_ready_at: null, items: resolvedItems
   });
   saveDB();
 
@@ -619,6 +666,43 @@ LOCAL.markAllRead = (sess) => {
   });
   saveDB();
   return { ok: true };
+};
+
+// ── attendance (clock in / clock out) ───────────────────────────────
+LOCAL.clockIn = (sess) => {
+  requireSession(sess);
+  const db = loadDB(), today = todayStr();
+  let rec = db.attendance.find(a => a.staff_id === sess.id && a.date === today);
+  if (rec) {
+    if (!rec.clock_in_at) { rec.clock_in_at = nowISO(); saveDB(); }
+    return { ok: true, record: rec, already: true };
+  }
+  rec = { id: uuid(), staff_id: sess.id, staff_name: sess.name, date: today, clock_in_at: nowISO(), clock_out_at: null };
+  db.attendance.push(rec);
+  saveDB();
+  return { ok: true, record: rec };
+};
+LOCAL.clockOut = (sess) => {
+  requireSession(sess);
+  const db = loadDB(), today = todayStr();
+  const rec = db.attendance.find(a => a.staff_id === sess.id && a.date === today);
+  if (!rec || !rec.clock_in_at) throw new HttpError(400, 'Hujaingia kazini leo bado');
+  if (rec.clock_out_at) return { ok: true, record: rec, already: true };
+  rec.clock_out_at = nowISO();
+  saveDB();
+  return { ok: true, record: rec };
+};
+LOCAL.getMyAttendance = (sess) => {
+  requireSession(sess);
+  const today = todayStr();
+  const records = loadDB().attendance.filter(a => a.staff_id === sess.id).sort((a, b) => b.date.localeCompare(a.date));
+  const todayRec = records.find(r => r.date === today) || null;
+  return { records, today: todayRec };
+};
+LOCAL.getAllAttendance = (sess) => {
+  requireRole(sess, 'Admin');
+  const records = loadDB().attendance.slice().sort((a, b) => b.date.localeCompare(a.date) || a.staff_name.localeCompare(b.staff_name));
+  return { records };
 };
 
 LOCAL.exportBackup = (sess) => { requireSession(sess); return loadDB(); };
