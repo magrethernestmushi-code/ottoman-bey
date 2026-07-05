@@ -84,8 +84,9 @@
   .main-content{flex:1;min-width:0}
 }
 /* BOTTOM NAV */
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(180deg,var(--brown),var(--black));border-top:1px solid rgba(212,175,55,.2);display:flex;padding:5px 0;z-index:200;box-shadow:0 -3px 18px rgba(0,0,0,.6)}
-.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:4px;cursor:pointer;border:none;background:none;color:rgba(255,248,225,.4);font-size:.63rem;font-weight:600;min-height:50px;justify-content:center;gap:2px;font-family:inherit;text-transform:uppercase;position:relative}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(180deg,var(--brown),var(--black));border-top:1px solid rgba(212,175,55,.2);display:flex;padding:5px 0;z-index:200;box-shadow:0 -3px 18px rgba(0,0,0,.6);overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.bottom-nav::-webkit-scrollbar{display:none}
+.bn-item{flex:0 0 auto;min-width:64px;display:flex;flex-direction:column;align-items:center;padding:4px 6px;cursor:pointer;border:none;background:none;color:rgba(255,248,225,.4);font-size:.6rem;font-weight:600;min-height:50px;justify-content:center;gap:2px;font-family:inherit;text-transform:uppercase;position:relative;white-space:nowrap}
 .bn-item .bi{font-size:20px}.bn-item.active{color:var(--gold)}.bn-item:hover{color:var(--gold-l)}
 .bn-badge{position:absolute;top:2px;right:calc(50% - 14px);background:var(--gold);color:#000;border-radius:10px;font-size:.6rem;font-weight:800;padding:1px 5px;display:none}
 /* PAGES */
@@ -565,6 +566,9 @@ const TRANSLATIONS = {
     'order.table':'Table','order.tableLabel':'🪑 Table Number','order.pickTableFirst':'Please pick a table number',
     'admin.lipaNamba':'💳 Lipa Namba','admin.lipaNambaLabel':'Payment Number (Lipa Namba)',
     'admin.lipaSave':'💾 Save Lipa Namba','admin.lipaSaved':'Lipa Namba updated','admin.lipaHint':'Shown to Cashier during mobile-money payments.',
+    'admin.backupTitle':'Data Backup','admin.exportBackup':'Export Backup','admin.importBackup':'Import Backup',
+    'admin.backupHint':'Download a backup weekly and keep it somewhere safe. Importing replaces ALL current data with the backup file.',
+    'admin.backupExported':'Backup downloaded','admin.backupImported':'Backup restored — reloading…','admin.importConfirm':'This will replace ALL current data (staff, menu, orders) with the backup file. This cannot be undone. Continue?',
     'nav.attendance':'Attendance','att.title':'🕒 My Attendance','att.clockIn':'✅ Clock In','att.clockOut':'🚪 Clock Out',
     'att.today':'Today','att.notClockedIn':'Not clocked in yet','att.history':'History','att.date':'Date','att.timeIn':'Time In','att.timeOut':'Time Out',
     'att.allStaff':'All Staff Attendance','att.staffName':'Staff',
@@ -687,6 +691,9 @@ const TRANSLATIONS = {
     'order.table':'Meza','order.tableLabel':'🪑 Namba ya Meza','order.pickTableFirst':'Tafadhali chagua namba ya meza',
     'admin.lipaNamba':'💳 Lipa Namba','admin.lipaNambaLabel':'Namba ya Malipo (Lipa Namba)',
     'admin.lipaSave':'💾 Hifadhi Lipa Namba','admin.lipaSaved':'Lipa Namba imesasishwa','admin.lipaHint':'Inaonekana kwa Cashier wakati wa malipo ya simu.',
+    'admin.backupTitle':'Hifadhi Nakala ya Data','admin.exportBackup':'Pakua Nakala (Backup)','admin.importBackup':'Rejesha Nakala (Restore)',
+    'admin.backupHint':'Pakua nakala kila wiki na uihifadhi mahali salama. Kurejesha kutabadilisha data YOTE ya sasa na ile ya nakala.',
+    'admin.backupExported':'Nakala imepakuliwa','admin.backupImported':'Nakala imerejeshwa — inapakia upya…','admin.importConfirm':'Hatua hii itabadilisha data YOTE ya sasa (wafanyakazi, menyu, order) na ile ya kwenye faili la nakala. Haiwezi kurudishwa nyuma. Endelea?',
     'nav.attendance':'Mahudhurio','att.title':'🕒 Mahudhurio Yangu','att.clockIn':'✅ Ingia Kazini','att.clockOut':'🚪 Toka Kazini',
     'att.today':'Leo','att.notClockedIn':'Bado hujaingia kazini','att.history':'Historia','att.date':'Tarehe','att.timeIn':'Muda wa Kuingia','att.timeOut':'Muda wa Kutoka',
     'att.allStaff':'Mahudhurio ya Wafanyakazi Wote','att.staffName':'Mfanyakazi',
@@ -1987,10 +1994,47 @@ async function renderAdminSettings(){
             💡 ${t('admin.lipaHint')}
           </div>
         </div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-title">💾 ${t('admin.backupTitle')}</span></div>
+        <div class="card-bd">
+          <button class="btn btn-gold mb-8" style="width:100%" onclick="doExportBackup()">⬇️ ${t('admin.exportBackup')}</button>
+          <input type="file" id="import-backup-file" accept="application/json" style="display:none" onchange="doImportBackup(this)">
+          <button class="btn btn-outline" style="width:100%" onclick="document.getElementById('import-backup-file').click()">⬆️ ${t('admin.importBackup')}</button>
+          <div class="muted mt-8" style="font-size:.8rem">
+            💡 ${t('admin.backupHint')}
+          </div>
+        </div>
       </div>`;
   }catch(e){
     el.innerHTML+=`<div class="empty-state"><span class="es-i">⚠️</span><p>${e.message}</p></div>`;
   }
+}
+async function doExportBackup(){
+  try{
+    const json=await API.exportBackup();
+    const blob=new Blob([json],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const stamp=new Date().toISOString().slice(0,10);
+    a.href=url;a.download=`ottoman-bey-backup-${stamp}.json`;
+    document.body.appendChild(a);a.click();a.remove();
+    URL.revokeObjectURL(url);
+    toast('✅',t('admin.backupExported'),'success');
+  }catch(e){toast('Error',e.message,'error');}
+}
+async function doImportBackup(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  openConfirm(t('admin.importBackup'),t('admin.importConfirm'),async()=>{
+    try{
+      const text=await file.text();
+      await API.importBackup(text);
+      toast('✅',t('admin.backupImported'),'success');
+      setTimeout(()=>location.reload(),1200);
+    }catch(e){toast('Error',e.message,'error');}
+    finally{input.value='';}
+  });
 }
 async function saveLipaNamba(){
   const lipaNamba=document.getElementById('lipa-namba-input').value.trim();
