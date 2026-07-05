@@ -5,7 +5,7 @@
   "description": "Ottoman Bey Restaurant POS - online multi-device edition",
   "main": "server.js",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "scripts": {
     "start": "node server.js"
