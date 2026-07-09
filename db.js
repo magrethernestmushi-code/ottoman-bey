@@ -599,7 +599,7 @@ LOCAL.setStatus = (sess, id, status, payment_method) => {
   if (!o) throw new HttpError(404, 'Not found');
   const allowed = {
     Admin: ['confirmed', 'preparing', 'ready', 'served', 'paid', 'cancelled'],
-    Cashier: ['paid', 'cancelled'],
+    Cashier: ['served', 'paid', 'cancelled'],
     Kitchen: ['preparing', 'ready'],
     Waiter: ['served']
   };
