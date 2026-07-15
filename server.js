@@ -133,6 +133,20 @@ app.post('/api/messages', handle(req => {
 }));
 app.post('/api/messages/read-all', handle(req => LOCAL.markAllRead(req.session)));
 
+// ── group chat ────────────────────────────────────────────────────────
+app.get('/api/chat', handle(req => LOCAL.getChatMessages(req.session)));
+app.post('/api/chat', handle(req => {
+  const out = LOCAL.sendChatMessage(req.session, req.body);
+  // Broadcast to ALL connected clients immediately via Socket.IO
+  emitEvent('chat:message', { message: out.message });
+  return out;
+}));
+app.delete('/api/chat', handle(req => {
+  const out = LOCAL.clearChat(req.session);
+  emitEvent('chat:cleared', {});
+  return out;
+}));
+
 // ── backup ────────────────────────────────────────────────────────────
 app.get('/api/backup', handle(req => LOCAL.exportBackup(req.session)));
 app.post('/api/backup', handle(req => LOCAL.importBackup(req.session, req.body)));

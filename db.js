@@ -122,6 +122,7 @@ function migrateDB(db) {
   delete db.settings.vat_enabled;
   delete db.settings.vat_rate;
   db.attendance = db.attendance || [];
+  db.chat = db.chat || [];
   db._seq = db._seq || {};
   if (typeof db._seq.categories === 'undefined') db._seq.categories = db.categories.reduce((m, c) => Math.max(m, c.id || 0), 0);
   if (typeof db._seq.menu_items === 'undefined') db._seq.menu_items = db.menu_items.reduce((m, i) => Math.max(m, i.id || 0), 0);
@@ -376,8 +377,9 @@ LOCAL.updateStaff = (sess, id, body) => {
 LOCAL.deleteStaff = (sess, id) => {
   requireRole(sess, 'Admin');
   if (id === sess.id) throw new HttpError(400, 'Cannot delete yourself');
-  const s = findStaff(id);
-  if (s) { s.is_active = 0; saveDB(); }
+  const db = loadDB();
+  const idx = db.staff.findIndex(s => s.id === id);
+  if (idx !== -1) { db.staff.splice(idx, 1); saveDB(); }
   return { ok: true };
 };
 LOCAL.getRoles = (sess) => { requireSession(sess); return { roles: ROLES.map((n, i) => ({ id: i + 1, name: n })) }; };
@@ -710,6 +712,41 @@ LOCAL.importBackup = (sess, parsed) => {
   requireRole(sess, 'Admin');
   if (!parsed || !Array.isArray(parsed.staff) || !Array.isArray(parsed.orders)) throw new HttpError(400, 'That file does not look like a valid Ottoman Bey backup.');
   _DB = migrateDB(parsed);
+  saveDB();
+  return { ok: true };
+};
+
+// ── group chat ─────────────────────────────────────────────────────
+// Separate from private messages — this is a live group chat visible
+// to ALL staff roles. Messages are stored in DB so history persists.
+LOCAL.getChatMessages = (sess) => {
+  requireSession(sess);
+  const db = loadDB();
+  if (!db.chat) db.chat = [];
+  return { messages: db.chat.slice(-200) }; // last 200 messages
+};
+LOCAL.sendChatMessage = (sess, body) => {
+  requireSession(sess);
+  body = body || {};
+  const text = (body.text || '').trim();
+  if (!text) throw new HttpError(400, 'Message text required');
+  if (text.length > 500) throw new HttpError(400, 'Message too long (max 500 chars)');
+  const db = loadDB();
+  if (!db.chat) db.chat = [];
+  const msg = {
+    id: uuid(), sender_id: sess.id, sender_name: sess.name,
+    sender_role: sess.role, text, created_at: nowISO()
+  };
+  db.chat.push(msg);
+  // Keep only last 500 messages in storage
+  if (db.chat.length > 500) db.chat = db.chat.slice(-500);
+  saveDB();
+  return { ok: true, message: msg };
+};
+LOCAL.clearChat = (sess) => {
+  requireRole(sess, 'Admin');
+  const db = loadDB();
+  db.chat = [];
   saveDB();
   return { ok: true };
 };

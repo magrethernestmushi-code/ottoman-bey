@@ -87,7 +87,10 @@
     getMyAttendance: function () { return apiCall('GET', '/api/attendance/me'); },
     getAllAttendance: function () { return apiCall('GET', '/api/attendance'); },
     exportBackup: function () { return apiCall('GET', '/api/backup').then(function (d) { return JSON.stringify(d, null, 2); }); },
-    importBackup: function (json) { return apiCall('POST', '/api/backup', typeof json === 'string' ? JSON.parse(json) : json); }
+    importBackup: function (json) { return apiCall('POST', '/api/backup', typeof json === 'string' ? JSON.parse(json) : json); },
+    getChatMessages: function () { return apiCall('GET', '/api/chat'); },
+    sendChatMessage: function (text) { return apiCall('POST', '/api/chat', { text: text }); },
+    clearChat: function () { return apiCall('DELETE', '/api/chat'); }
   };
 
   // ── realtime bus, backed by a single persistent Socket.io connection ──

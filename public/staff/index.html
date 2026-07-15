@@ -453,6 +453,9 @@
         <div id="msg-sent" style="display:none"></div>
       </div>
 
+      <!-- GROUP CHAT — live for all staff -->
+      <div class="page" id="pg-chat"></div>
+
     </div><!-- /main-content -->
   </div><!-- /app-layout -->
 
@@ -1024,6 +1027,7 @@ async function initApp(){
 // Nav labels use t() so they update automatically when language is switched.
 // NAVS is a function so labels are re-evaluated on each buildNav() call.
 function getNavs(){
+  const chatItem={p:'pg-chat',i:'🗨️',l:'Group Chat',badge2:true};
   return {
     Admin:[
       {p:'pg-admin-dash',   i:'📊', l:t('nav.dashboard')},
@@ -1034,6 +1038,7 @@ function getNavs(){
       {p:'pg-attendance',   i:'🕒', l:t('nav.attendance')},
       {p:'pg-admin-settings',i:'⚙️',l:t('nav.settings')},
       {p:'pg-messages',     i:'💬', l:t('nav.messages'), badge:true},
+      chatItem,
     ],
     Cashier:[
       {p:'pg-cashier',        i:'💰', l:t('nav.cashier')},
@@ -1044,18 +1049,21 @@ function getNavs(){
       {p:'pg-cashier-trends', i:'📈', l:t('nav.waiterTrends')},
       {p:'pg-attendance',     i:'🕒', l:t('nav.attendance')},
       {p:'pg-messages',       i:'💬', l:t('nav.messages'), badge:true},
+      chatItem,
     ],
     Waiter:[
       {p:'pg-waiter-orders',i:'📋',l:t('nav.myOrders')},
       {p:'pg-waiter-new',   i:'➕',l:t('nav.newOrder')},
       {p:'pg-attendance',   i:'🕒',l:t('nav.attendance')},
       {p:'pg-messages',     i:'💬',l:t('nav.messages'), badge:true},
+      chatItem,
     ],
     Kitchen:[
       {p:'pg-kitchen',   i:'👨‍🍳',l:t('nav.kitchen')},
       {p:'pg-kit-avail', i:'📦',l:t('nav.availability')},
       {p:'pg-attendance',i:'🕒',l:t('nav.attendance')},
       {p:'pg-messages',  i:'💬',l:t('nav.messages'), badge:true},
+      chatItem,
     ],
   };
 }
@@ -1109,6 +1117,7 @@ function renderPage(pid){
     'pg-admin-settings': renderAdminSettings,
     'pg-attendance':     renderAttendance,
     'pg-messages':       renderMessages,
+    'pg-chat':           renderGroupChat,
   }[pid]||function(){})();
   applyStaticI18n();
 }
@@ -1190,6 +1199,23 @@ function initSocket(){
   SOCKET.on('message:sent',msg=>{
     if(msg&&msg.sender_id&&msg.sender_id!==SESSION.id)return;
     if(PAGE==='pg-messages')renderMessages();
+  });
+  // Live group chat — all staff see messages instantly via Socket.IO
+  SOCKET.on('chat:message',({message})=>{
+    if(PAGE==='pg-chat'){
+      renderGroupChat(); // re-render chat page live
+    } else {
+      // Show toast + piano sound if not on chat page
+      if(message.sender_id!==SESSION.id){
+        CHAT_UNREAD++;updateChatBadge();
+        SFX.msg();
+        toast(`🗨️ ${message.sender_name} (${message.sender_role})`,message.text.slice(0,60)+(message.text.length>60?'…':''),'info');
+      }
+    }
+  });
+  SOCKET.on('chat:cleared',()=>{
+    CHAT_UNREAD=0;updateChatBadge();
+    if(PAGE==='pg-chat')renderGroupChat();
   });
 }
 
@@ -1788,7 +1814,7 @@ async function saveStaff(){
   else{const p=document.getElementById('staff-pass').value;if(p)data.password=p;}
   try{if(id)await API.updateStaff(id,data);else await API.createStaff(data);STAFF_CACHE=[];closeModal('modal-staff');renderAdminStaff();}catch(e){toast('Error',e.message,'error');}
 }
-function deleteStaffConfirm(id,name){openConfirm('Deactivate Staff',`Deactivate ${name}?`,async()=>{try{await API.deleteStaff(id);STAFF_CACHE=[];renderAdminStaff();}catch(e){toast('Error',e.message,'error');}});}
+function deleteStaffConfirm(id,name){openConfirm('Delete Staff',`Delete "${name}" permanently? This cannot be undone.`,async()=>{try{await API.deleteStaff(id);STAFF_CACHE=[];renderAdminStaff();}catch(e){toast('Error',e.message,'error');}});}
 
 // ── REPORTS ───────────────────────────────────────────────────
 async function renderReports(){
@@ -1885,6 +1911,89 @@ async function renderAttendance(){
 }
 async function doClockIn(){try{await API.clockIn();toast('✅','Umeingia kazini','success');renderAttendance();}catch(e){toast('Error',e.message,'error');}}
 async function doClockOut(){try{await API.clockOut();toast('🚪','Umetoka kazini','success');renderAttendance();}catch(e){toast('Error',e.message,'error');}}
+
+async function doClockIn(){try{await API.clockIn();toast('✅','Umeingia kazini','success');renderAttendance();}catch(e){toast('Error',e.message,'error');}}
+async function doClockOut(){try{await API.clockOut();toast('🚪','Umetoka kazini','success');renderAttendance();}catch(e){toast('Error',e.message,'error');}}
+
+// ── GROUP CHAT ─────────────────────────────────────────────────
+let CHAT_UNREAD=0;
+function updateChatBadge(){
+  const b=document.getElementById('bnb-pg-chat');
+  const sb=document.getElementById('sbb-pg-chat');
+  if(b){b.textContent=CHAT_UNREAD>9?'9+':CHAT_UNREAD||'';b.style.display=CHAT_UNREAD>0?'inline':'none';}
+  if(sb){sb.textContent=CHAT_UNREAD>9?'9+':CHAT_UNREAD||'';sb.style.display=CHAT_UNREAD>0?'inline-block':'none';}
+}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
+function fmtChatTime(iso){
+  if(!iso)return'';
+  const d=new Date(iso),now=new Date();
+  const isToday=d.toDateString()===now.toDateString();
+  return isToday?d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString([],{month:'short',day:'numeric'})+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+}
+function roleChatColor(role){return{Admin:'#D4AF37',Cashier:'#90caf9',Waiter:'#a5d6a7',Kitchen:'#ffb74d'}[role]||'#aaa';}
+
+async function renderGroupChat(){
+  CHAT_UNREAD=0;updateChatBadge();
+  const el=document.getElementById('pg-chat');
+  if(!el)return;
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div>
+        <div class="page-title">🗨️ Group Chat</div>
+        <div class="page-sub"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#4caf50;margin-right:5px;box-shadow:0 0 6px #4caf50"></span>Live — all staff</div>
+      </div>
+      ${SESSION.role==='Admin'?`<button class="btn btn-danger btn-sm" onclick="clearGroupChat()">🗑️ Clear</button>`:''}
+    </div>
+    <div id="chat-messages-box" style="height:calc(100vh - 260px);overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 0;min-height:200px">
+      <div class="spinner"></div>
+    </div>
+    <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid rgba(212,175,55,.12);margin-top:8px">
+      <textarea id="chat-msg-input" placeholder="Type a message… (Enter to send)" rows="1"
+        style="flex:1;background:#1a1a1a;border:1px solid rgba(212,175,55,.2);color:#fff;padding:10px 13px;border-radius:8px;font-size:.86rem;resize:none;min-height:42px;max-height:100px;font-family:inherit;outline:none"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMsg();}"></textarea>
+      <button class="btn btn-gold" onclick="sendChatMsg()" style="align-self:flex-end">📤</button>
+    </div>`;
+
+  try{
+    const d=await API.getChatMessages();
+    const msgs=d.messages||[];
+    const box=document.getElementById('chat-messages-box');
+    if(!box)return;
+    if(!msgs.length){
+      box.innerHTML=`<div style="text-align:center;padding:40px 20px;color:#666"><div style="font-size:2rem;margin-bottom:8px">🗨️</div><div>No messages yet — start the conversation!</div></div>`;
+      return;
+    }
+    box.innerHTML=msgs.map(m=>{
+      const mine=m.sender_id===SESSION.id;
+      const color=roleChatColor(m.sender_role);
+      return`<div style="display:flex;flex-direction:column;max-width:80%;${mine?'align-self:flex-end;align-items:flex-end':'align-self:flex-start;align-items:flex-start'}">
+        ${!mine?`<div style="font-size:.64rem;font-weight:800;color:${color};padding:0 4px;margin-bottom:2px">${escHtml(m.sender_name)} · ${m.sender_role}</div>`:''}
+        <div style="padding:9px 14px;border-radius:16px;font-size:.85rem;line-height:1.4;word-break:break-word;${mine?'background:#9A7E20;color:#fff;border-bottom-right-radius:4px':'background:#1a1a1a;border:1px solid rgba(212,175,55,.15);color:#fff;border-bottom-left-radius:4px'}">${escHtml(m.text)}</div>
+        <div style="font-size:.64rem;color:#666;margin-top:3px;padding:0 4px">${mine?'You':''} ${fmtChatTime(m.created_at)}</div>
+      </div>`;
+    }).join('');
+    // Scroll to bottom
+    box.scrollTop=box.scrollHeight;
+  }catch(e){
+    const box=document.getElementById('chat-messages-box');
+    if(box)box.innerHTML=`<div style="text-align:center;color:#ef9a9a;padding:20px">${e.message}</div>`;
+  }
+}
+async function sendChatMsg(){
+  const inp=document.getElementById('chat-msg-input');
+  const text=inp?.value.trim();
+  if(!text)return;
+  inp.value='';inp.style.height='42px';
+  try{
+    await API.sendChatMessage(text);
+    // Socket will fire chat:message and re-render
+  }catch(e){toast('Error',e.message,'error');inp.value=text;}
+}
+async function clearGroupChat(){
+  if(!confirm('Clear all chat history for everyone?'))return;
+  try{await API.clearChat();toast('🗑️','Chat cleared','success');renderGroupChat();}
+  catch(e){toast('Error',e.message,'error');}
+}
 
 async function renderMessages(){
   const inboxEl=document.getElementById('msg-inbox');
