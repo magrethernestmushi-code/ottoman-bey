@@ -304,7 +304,7 @@
     <div class="tb-right">
       <div class="ws-dot" id="ws-dot" title="Connection status"></div>
       <button class="lang-toggle" id="lang-btn" onclick="toggleLang()">SW</button>
-      <button class="tb-btn" onclick="showPage('pg-messages')">💬<span class="msg-badge" id="top-msg-badge">0</span></button>
+      <button class="tb-btn" onclick="showPage('pg-chat')">🗨️<span class="msg-badge" id="top-chat-badge" style="display:none">0</span></button>
       <button class="tb-btn" onclick="doLogout()">⏻ Logout</button>
     </div>
   </div>
@@ -410,19 +410,8 @@
       <!-- ══ MESSAGES ══ -->
       <div class="page" id="pg-attendance"></div>
 
-      <div class="page" id="pg-messages">
-        <div class="page-hd flex-b">
-          <div><div class="page-title" data-i18n="msg.title">💬 Messages</div><div class="page-sub" data-i18n="msg.sub">Internal staff communication</div></div>
-          <button class="btn btn-gold btn-sm" data-i18n="msg.compose" onclick="openComposeModal()">✏️ New Message</button>
-        </div>
-        <div id="msg-broadcast-btns" class="flex gap-8 mb-12" style="flex-wrap:wrap;display:none"></div>
-        <div class="tabs">
-          <button class="tab-btn active" onclick="msgTab('inbox',this)">📥 Inbox</button>
-          <button class="tab-btn" onclick="msgTab('sent',this)">📤 Sent</button>
-        </div>
-        <div id="msg-inbox"></div>
-        <div id="msg-sent" style="display:none"></div>
-      </div>
+      <!-- GROUP CHAT — live for all staff -->
+      <div class="page" id="pg-chat"></div>
 
     </div><!-- /main-content -->
   </div><!-- /app-layout -->
@@ -481,35 +470,6 @@
       <div class="fg"><label>Description (optional)</label><input class="input" id="menu-desc" placeholder="Brief description…"></div>
     </div>
     <div class="modal-ft"><button class="btn btn-dark" onclick="closeModal('modal-menu')">Cancel</button><button class="btn btn-gold" onclick="saveMenuItem()">💾 Save</button></div>
-  </div>
-</div>
-
-<!-- COMPOSE MESSAGE MODAL -->
-<div class="modal-overlay" id="modal-compose" style="display:none" onclick="if(event.target===this)closeModal('modal-compose')">
-  <div class="modal" style="max-width:500px">
-    <div class="modal-hd"><div class="modal-title">✏️ New Message</div><button class="modal-close" onclick="closeModal('modal-compose')">✕</button></div>
-    <div class="modal-bd">
-      <div class="fg">
-        <label>Send To</label>
-        <div class="flex gap-8 mb-8">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.9rem"><input type="radio" name="msg-type" id="mt-person" value="person" onchange="toggleMsgTarget()" checked> 👤 Person</label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.9rem"><input type="radio" name="msg-type" id="mt-role" value="role" onchange="toggleMsgTarget()"> 📢 Broadcast</label>
-        </div>
-        <div id="msg-target-person"><select class="select" id="msg-staff-select"><option value="">— Select person —</option></select></div>
-        <div id="msg-target-role" style="display:none">
-          <select class="select" id="msg-role-select">
-            <option value="ALL">📢 ALL Staff</option>
-            <option value="Waiter">🍽️ All Waiters</option>
-            <option value="Kitchen">👨‍🍳 Kitchen Team</option>
-            <option value="Cashier">💰 Cashier(s)</option>
-            <option value="Admin">👑 Admin</option>
-          </select>
-        </div>
-      </div>
-      <div class="fg"><label>Subject (optional)</label><input class="input" id="msg-subject" placeholder="e.g. Shift Update, Table Issue…"></div>
-      <div class="fg"><label>Message</label><textarea class="input" id="msg-body" rows="5" placeholder="Write your message here…"></textarea></div>
-    </div>
-    <div class="modal-ft"><button class="btn btn-dark" onclick="closeModal('modal-compose')">Cancel</button><button class="btn btn-gold" onclick="sendMessage()">📤 Send</button></div>
   </div>
 </div>
 
@@ -798,7 +758,7 @@ let SESSION=null,SOCKET=null,PAGE=null;
 let CART=[],SEL_CAT=null,SELECTED_TABLE=null;
 let MENU_CACHE=[],STAFF_CACHE=[];
 let PAY_ORDER_ID=null,PAY_METHOD='cash',RECEIPT_DATA=null;
-let C_TAB='pending',MSG_TAB='inbox',UNREAD=0;
+let C_TAB='pending';
 let SETTINGS_CACHE={lipa_namba:''};
 
 
@@ -993,8 +953,6 @@ async function initApp(){
   const defaults={Admin:'pg-admin-dash',Cashier:'pg-cashier',Waiter:'pg-waiter-orders',Kitchen:'pg-kitchen'};
   showPage(defaults[SESSION.role]||'pg-admin-dash');
   initSocket();
-  refreshUnread();
-  setInterval(refreshUnread,60000);
   if(window.innerWidth>=768)document.getElementById('sidebar').style.display='block';
 }
 
@@ -1002,16 +960,17 @@ async function initApp(){
 // Nav labels use t() so they update automatically when language is switched.
 // NAVS is a function so labels are re-evaluated on each buildNav() call.
 function getNavs(){
+  const chatItem={p:'pg-chat',i:'🗨️',l:'Group Chat',badge2:true};
   return {
     Admin:[
-      {p:'pg-admin-dash',   i:'📊', l:t('nav.dashboard')},
-      {p:'pg-admin-menu',   i:'🍽️', l:t('nav.menu')},
-      {p:'pg-admin-staff',  i:'👥', l:t('nav.staff')},
-      {p:'pg-admin-reports',i:'📄', l:t('nav.reports')},
-      {p:'pg-admin-roles',  i:'📊', l:t('nav.roleStats')},
-      {p:'pg-attendance',   i:'🕒', l:t('nav.attendance')},
-      {p:'pg-admin-settings',i:'⚙️',l:t('nav.settings')},
-      {p:'pg-messages',     i:'💬', l:t('nav.messages'), badge:true},
+      {p:'pg-admin-dash',    i:'📊', l:t('nav.dashboard')},
+      {p:'pg-admin-menu',    i:'🍽️', l:t('nav.menu')},
+      {p:'pg-admin-staff',   i:'👥', l:t('nav.staff')},
+      {p:'pg-admin-reports', i:'📄', l:t('nav.reports')},
+      {p:'pg-admin-roles',   i:'📊', l:t('nav.roleStats')},
+      {p:'pg-attendance',    i:'🕒', l:t('nav.attendance')},
+      {p:'pg-admin-settings',i:'⚙️', l:t('nav.settings')},
+      chatItem,
     ],
     Cashier:[
       {p:'pg-cashier',        i:'💰', l:t('nav.cashier')},
@@ -1020,19 +979,19 @@ function getNavs(){
       {p:'pg-cashier-waiters',i:'👥', l:t('nav.waiterStatus')},
       {p:'pg-cashier-trends', i:'📈', l:t('nav.waiterTrends')},
       {p:'pg-attendance',     i:'🕒', l:t('nav.attendance')},
-      {p:'pg-messages',       i:'💬', l:t('nav.messages'), badge:true},
+      chatItem,
     ],
     Waiter:[
-      {p:'pg-waiter-orders',i:'📋',l:t('nav.myOrders')},
-      {p:'pg-waiter-new',   i:'➕',l:t('nav.newOrder')},
-      {p:'pg-attendance',   i:'🕒',l:t('nav.attendance')},
-      {p:'pg-messages',     i:'💬',l:t('nav.messages'), badge:true},
+      {p:'pg-waiter-orders',i:'📋', l:t('nav.myOrders')},
+      {p:'pg-waiter-new',   i:'➕', l:t('nav.newOrder')},
+      {p:'pg-attendance',   i:'🕒', l:t('nav.attendance')},
+      chatItem,
     ],
     Kitchen:[
-      {p:'pg-kitchen',   i:'👨‍🍳',l:t('nav.kitchen')},
-      {p:'pg-kit-avail', i:'📦',l:t('nav.availability')},
-      {p:'pg-attendance',i:'🕒',l:t('nav.attendance')},
-      {p:'pg-messages',  i:'💬',l:t('nav.messages'), badge:true},
+      {p:'pg-kitchen',   i:'👨‍🍳', l:t('nav.kitchen')},
+      {p:'pg-kit-avail', i:'📦', l:t('nav.availability')},
+      {p:'pg-attendance',i:'🕒', l:t('nav.attendance')},
+      chatItem,
     ],
   };
 }
@@ -1040,22 +999,14 @@ function buildNav(){
   const items=(getNavs()[SESSION.role]||[]);
   document.getElementById('bottom-nav').innerHTML=items.map(it=>
     `<button class="bn-item" onclick="showPage('${it.p}')" id="bn-${it.p}">
-       <span class="bi">${it.i}${it.badge?`<span class="bn-badge" id="bnb-${it.p}"></span>`:''}</span>
+       <span class="bi">${it.i}${it.badge2?`<span class="bn-badge" id="bnb-${it.p}" style="display:none"></span>`:''}</span>
        <span>${it.l}</span></button>`).join('');
   document.getElementById('sb-nav').innerHTML=
     `<div class="sb-section">${SESSION.role}</div>`+
     items.map(it=>
       `<button class="sb-item" onclick="showPage('${it.p}')" id="sb-${it.p}">
          <span class="icon">${it.i}</span><span style="flex:1">${it.l}</span>
-         ${it.badge?`<span class="msg-badge" id="sbb-${it.p}" style="display:none"></span>`:''}</button>`).join('');
-  setBadges();
-  // Admin broadcast buttons in messages
-  if(SESSION.role==='Admin'){
-    document.getElementById('msg-broadcast-btns').style.display='flex';
-    document.getElementById('msg-broadcast-btns').innerHTML=
-      ['ALL Staff','Waiter','Kitchen','Cashier'].map(r=>
-        `<button class="btn btn-outline btn-sm" onclick="quickBroadcast('${r==='ALL Staff'?'ALL':r}')">📢 ${r}</button>`).join('');
-  }
+         ${it.badge2?`<span class="msg-badge" id="sbb-${it.p}" style="display:none"></span>`:''}</button>`).join('');
 }
 function showPage(pid){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1085,7 +1036,7 @@ function renderPage(pid){
     'pg-admin-roles':    renderRoleStats,
     'pg-admin-settings': renderAdminSettings,
     'pg-attendance':     renderAttendance,
-    'pg-messages':       renderMessages,
+    'pg-chat':           renderGroupChat,
   }[pid]||function(){})();
   applyStaticI18n();
 }
@@ -1155,36 +1106,82 @@ function initSocket(){
     MENU_CACHE=[];
     if(['pg-waiter-new','pg-kitchen','pg-kit-avail','pg-cashier-avail','pg-admin-menu'].includes(PAGE)) refreshPage();
   });
-  SOCKET.on('message:new',msg=>{
-    // No server-side room routing offline, so filter to the current
-    // session here (mirrors what the old server's socket rooms did).
-    const relevant=msg.sender_id!==SESSION.id&&(msg.target_staff_id===SESSION.id||msg.target_role===SESSION.role||msg.target_role==='ALL');
-    if(!relevant)return;
-    UNREAD++;setBadges();SFX.msg();
-    toast(`💬 ${msg.sender_name}`,msg.body.slice(0,60)+(msg.body.length>60?'…':''),'info');
-    if(PAGE==='pg-messages')renderMessages();
+  // Live group chat
+  SOCKET.on('chat:message',({message})=>{
+    if(PAGE==='pg-chat'){
+      renderGroupChat();
+    } else {
+      if(message.sender_id!==SESSION.id){
+        CHAT_UNREAD++;updateChatBadge();
+        SFX.msg();
+        toast(`🗨️ ${message.sender_name} (${message.sender_role})`,message.text.slice(0,60)+(message.text.length>60?'…':''),'info');
+      }
+    }
   });
-  SOCKET.on('message:sent',msg=>{
-    if(msg&&msg.sender_id&&msg.sender_id!==SESSION.id)return;
-    if(PAGE==='pg-messages')renderMessages();
+  SOCKET.on('chat:cleared',()=>{
+    CHAT_UNREAD=0;updateChatBadge();
+    if(PAGE==='pg-chat')renderGroupChat();
   });
 }
 
-// ── UNREAD BADGE ───────────────────────────────────────────────
-async function refreshUnread(){
-  try{const d=await API.getUnread();UNREAD=d.count;setBadges();}catch(_){}
+// ── CHAT BADGE ────────────────────────────────────────────────
+let CHAT_UNREAD=0;
+function updateChatBadge(){
+  const b=document.getElementById('bnb-pg-chat');
+  const sb=document.getElementById('sbb-pg-chat');
+  const tb=document.getElementById('top-chat-badge');
+  if(b){b.textContent=CHAT_UNREAD>9?'9+':CHAT_UNREAD||'';b.style.display=CHAT_UNREAD>0?'inline':'none';}
+  if(sb){sb.textContent=CHAT_UNREAD>9?'9+':CHAT_UNREAD||'';sb.style.display=CHAT_UNREAD>0?'inline-block':'none';}
+  if(tb){tb.textContent=CHAT_UNREAD>9?'9+':CHAT_UNREAD||'';tb.style.display=CHAT_UNREAD>0?'inline':'none';}
 }
-function setBadges(){
-  const show=UNREAD>0;
-  const txt=String(UNREAD);
-  document.getElementById('top-msg-badge').textContent=UNREAD||'';
-  document.getElementById('top-msg-badge').style.display=show?'inline':'none';
-  ['pg-messages'].forEach(p=>{
-    const bn=document.getElementById('bnb-'+p);
-    const sb=document.getElementById('sbb-'+p);
-    if(bn){bn.textContent=txt;bn.style.display=show?'block':'none';}
-    if(sb){sb.textContent=txt;sb.style.display=show?'inline':'none';}
-  });
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
+function fmtChatTime(iso){if(!iso)return'';const d=new Date(iso),now=new Date();const isToday=d.toDateString()===now.toDateString();return isToday?d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString([],{month:'short',day:'numeric'})+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+function roleChatColor(role){return{Admin:'#D4AF37',Cashier:'#90caf9',Waiter:'#a5d6a7',Kitchen:'#ffb74d'}[role]||'#aaa';}
+
+async function renderGroupChat(){
+  CHAT_UNREAD=0;updateChatBadge();
+  const el=document.getElementById('pg-chat');
+  if(!el)return;
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div><div class="page-title">🗨️ Group Chat</div><div class="page-sub"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#4caf50;margin-right:5px;box-shadow:0 0 6px #4caf50"></span>Live — all staff</div></div>
+      ${SESSION.role==='Admin'?`<button class="btn btn-danger btn-sm" onclick="clearGroupChat()">🗑️ Clear</button>`:''}
+    </div>
+    <div id="chat-messages-box" style="height:calc(100vh - 260px);overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 0;min-height:200px"><div class="spinner"></div></div>
+    <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid rgba(212,175,55,.12);margin-top:8px">
+      <textarea id="chat-msg-input" placeholder="Type a message… (Enter to send)" rows="1"
+        style="flex:1;background:#1a1a1a;border:1px solid rgba(212,175,55,.2);color:#fff;padding:10px 13px;border-radius:8px;font-size:.86rem;resize:none;min-height:42px;max-height:100px;font-family:inherit;outline:none"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMsg();}"></textarea>
+      <button class="btn btn-gold" onclick="sendChatMsg()" style="align-self:flex-end">📤</button>
+    </div>`;
+  try{
+    const d=await API.getChatMessages();
+    const msgs=d.messages||[];
+    const box=document.getElementById('chat-messages-box');
+    if(!box)return;
+    if(!msgs.length){box.innerHTML=`<div style="text-align:center;padding:40px 20px;color:#666"><div style="font-size:2rem;margin-bottom:8px">🗨️</div><div>No messages yet — start the conversation!</div></div>`;return;}
+    box.innerHTML=msgs.map(m=>{
+      const mine=m.sender_id===SESSION.id;
+      const color=roleChatColor(m.sender_role);
+      return`<div style="display:flex;flex-direction:column;max-width:80%;${mine?'align-self:flex-end;align-items:flex-end':'align-self:flex-start;align-items:flex-start'}">
+        ${!mine?`<div style="font-size:.64rem;font-weight:800;color:${color};padding:0 4px;margin-bottom:2px">${escHtml(m.sender_name)} · ${m.sender_role}</div>`:''}
+        <div style="padding:9px 14px;border-radius:16px;font-size:.85rem;line-height:1.4;word-break:break-word;${mine?'background:#9A7E20;color:#fff;border-bottom-right-radius:4px':'background:#1a1a1a;border:1px solid rgba(212,175,55,.15);color:#fff;border-bottom-left-radius:4px'}">${escHtml(m.text)}</div>
+        <div style="font-size:.64rem;color:#666;margin-top:3px;padding:0 4px">${mine?'You':''} ${fmtChatTime(m.created_at)}</div>
+      </div>`;
+    }).join('');
+    box.scrollTop=box.scrollHeight;
+  }catch(e){const box=document.getElementById('chat-messages-box');if(box)box.innerHTML=`<div style="text-align:center;color:#ef9a9a;padding:20px">${e.message}</div>`;}
+}
+async function sendChatMsg(){
+  const inp=document.getElementById('chat-msg-input');
+  const text=inp?.value.trim();if(!text)return;
+  inp.value='';
+  try{await API.sendChatMessage(text);}catch(e){toast('Error',e.message,'error');inp.value=text;}
+}
+async function clearGroupChat(){
+  if(!confirm('Clear all chat history for everyone?'))return;
+  try{await API.clearChat();toast('🗑️','Chat cleared','success');renderGroupChat();}
+  catch(e){toast('Error',e.message,'error');}
 }
 
 // ── DATA CACHE ─────────────────────────────────────────────────
@@ -1785,15 +1782,8 @@ async function loadReports(){
 }
 
 // ══════════════════════════════════════════════════════════════
-// MESSAGES
+// MESSAGES removed — replaced with Group Chat (pg-chat)
 // ══════════════════════════════════════════════════════════════
-function msgTab(tab,btn){
-  MSG_TAB=tab;
-  document.querySelectorAll('#pg-messages .tab-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('msg-inbox').style.display=tab==='inbox'?'block':'none';
-  document.getElementById('msg-sent').style.display=tab==='sent'?'block':'none';
-}
 
 // ══════════════════════════════════════════════════════════════
 // ATTENDANCE (clock in / clock out) — all roles
@@ -1848,70 +1838,6 @@ async function renderAttendance(){
 }
 async function doClockIn(){try{await API.clockIn();toast('✅','Umeingia kazini','success');renderAttendance();}catch(e){toast('Error',e.message,'error');}}
 async function doClockOut(){try{await API.clockOut();toast('🚪','Umetoka kazini','success');renderAttendance();}catch(e){toast('Error',e.message,'error');}}
-
-async function renderMessages(){
-  const inboxEl=document.getElementById('msg-inbox');
-  const sentEl =document.getElementById('msg-sent');
-  inboxEl.innerHTML=`<div class="spinner"></div>`;
-  try{
-    const[msgData,staffData]=await Promise.all([API.getMessages(),API.getStaffList()]);
-    const msgs=msgData.messages||[];
-    // Mark all as read
-    if(msgs.some(m=>!m.is_read&&m.sender_id!==SESSION.id)){API.markAllRead();UNREAD=0;setBadges();}
-    const inbox=msgs.filter(m=>m.sender_id!==SESSION.id);
-    const sent =msgs.filter(m=>m.sender_id===SESSION.id);
-    // Populate staff list for compose
-    document.getElementById('msg-staff-select').innerHTML=
-      `<option value="">— Select person —</option>`+
-      (staffData.staff||[]).map(s=>`<option value="${s.id}">${s.full_name} (${s.role})</option>`).join('');
-
-    const renderList=(list,isSent)=>list.length?list.map(m=>`
-      <div class="msg-card ${!isSent&&!m.is_read?'unread':''}">
-        <div class="msg-meta">${isSent?`➤ To: ${m.target_staff_id?'Personal':m.target_role||'?'}`:`From: <strong>${m.sender_name}</strong> (${m.sender_role})`} • ${fmtDT(m.created_at)} ${!isSent&&!m.is_read?'<span class="badge b-gold" style="font-size:.62rem;margin-left:6px">NEW</span>':''}</div>
-        ${m.subject?`<div class="fw8 mb-4">${m.subject}</div>`:''}
-        <div class="msg-body">${m.body.replace(/\n/g,'<br>')}</div>
-        ${!isSent?`<button class="btn btn-outline btn-sm mt-8" onclick="replyTo('${m.sender_id}','Re: ${(m.subject||'').replace(/'/g,"\\'")}')">↩ Reply</button>`:''}
-      </div>`).join(''):
-      `<div class="empty-state"><span class="es-i">💬</span><p>${isSent?'No sent messages yet':'No messages yet'}</p></div>`;
-
-    inboxEl.innerHTML=renderList(inbox,false);
-    sentEl.innerHTML =renderList(sent,true);
-  }catch(e){inboxEl.innerHTML=`<div class="empty-state"><span class="es-i">⚠️</span><p>${e.message}</p></div>`;}
-}
-
-function toggleMsgTarget(){
-  const isPersonal=document.getElementById('mt-person').checked;
-  document.getElementById('msg-target-person').style.display=isPersonal?'block':'none';
-  document.getElementById('msg-target-role').style.display=isPersonal?'none':'block';
-}
-
-function openComposeModal(toId=null,subject=''){
-  document.getElementById('msg-subject').value=subject;
-  document.getElementById('msg-body').value='';
-  if(toId){document.getElementById('mt-person').checked=true;document.getElementById('msg-staff-select').value=toId;toggleMsgTarget();}
-  else if(SESSION.role!=='Admin'){document.getElementById('mt-person').checked=true;toggleMsgTarget();}
-  else{document.getElementById('mt-role').checked=true;toggleMsgTarget();}
-  openModal('modal-compose');
-}
-function replyTo(staffId,subject){openComposeModal(staffId,subject);}
-function quickBroadcast(role){document.getElementById('mt-role').checked=true;toggleMsgTarget();document.getElementById('msg-role-select').value=role;document.getElementById('msg-subject').value='';document.getElementById('msg-body').value='';openModal('modal-compose');}
-
-async function sendMessage(){
-  const body=document.getElementById('msg-body').value.trim();
-  const subject=document.getElementById('msg-subject').value.trim();
-  if(!body){toast('Error','Message body required','error');return;}
-  const isPersonal=document.getElementById('mt-person').checked;
-  const payload={body,subject:subject||undefined};
-  if(isPersonal){
-    const sid=document.getElementById('msg-staff-select').value;
-    if(!sid){toast('Error','Select a recipient','error');return;}
-    payload.target_staff_id=sid;
-  }else{
-    payload.target_role=document.getElementById('msg-role-select').value;
-  }
-  try{await API.sendMsg(payload);closeModal('modal-compose');toast('Sent!','Message delivered','success');if(PAGE==='pg-messages')renderMessages();}
-  catch(e){toast('Error',e.message,'error');}
-}
 
 // ══════════════════════════════════════════════════════════════
 // ROLE PERFORMANCE (Admin-only — "dashboard that tracks every role")
