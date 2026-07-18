@@ -769,6 +769,7 @@ const SFX=(()=>{
   let ctx=null;
   const gc=()=>{
     if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();
+    if(ctx.state==='suspended')ctx.resume();
     return ctx;
   };
 
@@ -869,7 +870,7 @@ const SFX=(()=>{
       }catch(e){}
     },
     resume:()=>{
-      try{if(ctx&&ctx.state==='suspended')ctx.resume();}catch(e){}
+      try{if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();if(ctx.state==='suspended')ctx.resume();}catch(e){}
     }
   };
 })();
@@ -1184,7 +1185,7 @@ async function renderGroupChat(){
     <div id="chat-messages-box" style="height:calc(100vh - 290px);overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 0;min-height:200px"><div class="spinner"></div></div>
     <div style="margin-top:8px">
       <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:.7rem;color:#888">Translate to:</span>
+        <span style="font-size:.7rem;color:#888">Read messages in:</span>
         <button class="tab-btn${CHAT_TRANSLATE_TO==='en'?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('en')">🇬🇧 EN</button>
         <button class="tab-btn${CHAT_TRANSLATE_TO==='sw'?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('sw')">🇹🇿 SW</button>
         <button class="tab-btn${CHAT_TRANSLATE_TO==='ar'?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('ar')">🇸🇦 AR</button>
@@ -1207,10 +1208,14 @@ async function renderGroupChat(){
     box.innerHTML=msgs.map(m=>{
       const mine=m.sender_id===SESSION.id;
       const color=roleChatColor(m.sender_role);
-      return`<div style="display:flex;flex-direction:column;max-width:80%;${mine?'align-self:flex-end;align-items:flex-end':'align-self:flex-start;align-items:flex-start'}">
+      const canTranslate=!mine&&CHAT_TRANSLATE_TO;
+      return`<div style="display:flex;flex-direction:column;max-width:82%;${mine?'align-self:flex-end;align-items:flex-end':'align-self:flex-start;align-items:flex-start'}">
         ${!mine?`<div style="font-size:.64rem;font-weight:800;color:${color};padding:0 4px;margin-bottom:2px">${escHtml(m.sender_name)} · ${m.sender_role}</div>`:''}
-        <div style="padding:9px 14px;border-radius:16px;font-size:.85rem;line-height:1.45;word-break:break-word;${mine?'background:#9A7E20;color:#fff;border-bottom-right-radius:4px':'background:#1a1a1a;border:1px solid rgba(212,175,55,.15);color:#fff;border-bottom-left-radius:4px'}">${escHtml(m.text)}${m.translated_en&&m.translated_en.toLowerCase()!==m.text.toLowerCase()?`<div style="margin-top:6px;padding-top:5px;border-top:1px solid rgba(255,255,255,.18);font-size:.76rem;opacity:.88;font-style:italic">🌐 ${escHtml(m.translated_en)}</div>`:''}</div>
-        <div style="font-size:.64rem;color:#666;margin-top:3px;padding:0 4px">${mine?'You':''} ${fmtChatTime(m.created_at)}</div>
+        <div style="padding:9px 14px;border-radius:16px;font-size:.85rem;line-height:1.45;word-break:break-word;${mine?'background:#9A7E20;color:#fff;border-bottom-right-radius:4px':'background:#1a1a1a;border:1px solid rgba(212,175,55,.15);color:#fff;border-bottom-left-radius:4px'}">${escHtml(m.text)}<div id="trans-${m.id}"></div></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:2px;padding:0 4px">
+          <span style="font-size:.63rem;color:#666">${mine?'You · ':''}${fmtChatTime(m.created_at)}</span>
+          ${canTranslate?`<button id="tbtn-${m.id}" onclick="translateMsg('${m.id}',this)" data-text="${escHtml(m.text)}" style="background:none;border:none;color:#D4AF37;font-size:.7rem;cursor:pointer;padding:0;font-family:inherit">🌐 Translate</button>`:''}
+        </div>
       </div>`;
     }).join('');
     box.scrollTop=box.scrollHeight;
@@ -1220,19 +1225,26 @@ let CHAT_TRANSLATE_TO=localStorage.getItem('ob_chat_translate')||'';
 function setChatTranslate(lang){CHAT_TRANSLATE_TO=lang;localStorage.setItem('ob_chat_translate',lang);if(PAGE==='pg-chat')renderGroupChat();}
 async function translateText(text,to){try{const d=await API.translate(text,to);if(d.ok&&d.translated&&d.translated.toLowerCase()!==text.toLowerCase())return{translated:d.translated,from:d.from};}catch(e){}return null;}
 
+async function translateMsg(msgId,btnEl){
+  const text=btnEl.getAttribute('data-text');
+  if(!text)return;
+  const targetLang=CHAT_TRANSLATE_TO||'en';
+  btnEl.textContent='⏳';btnEl.disabled=true;
+  try{
+    const d=await API.translate(text,targetLang);
+    if(d.ok&&d.translated){
+      const c=document.getElementById('trans-'+msgId);
+      if(c)c.innerHTML=`<div style="margin-top:6px;padding-top:5px;border-top:1px solid rgba(255,255,255,.18);font-size:.78rem;font-style:italic;opacity:.9">🌐 ${escHtml(d.translated)}</div>`;
+      btnEl.textContent='✓ Translated';btnEl.style.color='#a5d6a7';
+    }else{btnEl.textContent='🌐 Translate';btnEl.disabled=false;toast('Could not translate','Try again','warning');}
+  }catch(e){btnEl.textContent='🌐 Translate';btnEl.disabled=false;toast('Error',e.message,'error');}
+}
+
 async function sendChatMsg(){
   const inp=document.getElementById('chat-msg-input');
   const text=inp?.value.trim();if(!text)return;
   inp.value='';
-  let translated_en=null,original_lang=null;
-  if(CHAT_TRANSLATE_TO){
-    const s=document.getElementById('translate-status');if(s)s.textContent='⏳ Translating…';
-    const r=await translateText(text,CHAT_TRANSLATE_TO);
-    if(r){translated_en=r.translated;original_lang=r.from;}
-    if(s)s.textContent=r?`✓ from ${r.from}`:'';
-    setTimeout(()=>{const s2=document.getElementById('translate-status');if(s2)s2.textContent='';},3000);
-  }
-  try{await API.sendChatMessage(text,translated_en,original_lang);}
+  try{await API.sendChatMessage(text,null,null);}
   catch(e){toast('Error',e.message,'error');inp.value=text;}
 }
 async function clearGroupChat(){
@@ -2353,7 +2365,9 @@ async function renderCashierTrends(){
 
 // ── STARTUP ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',async()=>{
-  document.addEventListener('click',()=>SFX.resume(),{once:true});
+  const unlockAudio=()=>SFX.resume();
+  document.addEventListener('click',unlockAudio);
+  document.addEventListener('touchstart',unlockAudio,{passive:true});
   document.getElementById('l-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('l-pass').focus();});
   document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   window.addEventListener('resize',()=>{const sb=document.getElementById('sidebar');if(sb)sb.style.display=window.innerWidth>=768?'block':'none';});

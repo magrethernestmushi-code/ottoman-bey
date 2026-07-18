@@ -790,7 +790,9 @@ let SETTINGS_CACHE={lipa_namba:''};
 const SFX=(()=>{
   let ctx=null;
   const gc=()=>{
-    if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();
+    if(!ctx) ctx=new(window.AudioContext||window.webkitAudioContext)();
+    // iOS Safari suspends the context when page loses focus — always resume
+    if(ctx.state==='suspended') ctx.resume();
     return ctx;
   };
 
@@ -886,12 +888,20 @@ const SFX=(()=>{
     // Plate taken — soft mid ping
     plateTaken:()=>{
       try{
-        const c=gc(),now=c.currentTime;
-        chord([NOTE.F4,NOTE.A4,NOTE.C5],now,0.6,0.20);
+        const c=gc();
+        if(c.state==='suspended'){c.resume().then(()=>{const now=c.currentTime;chord([NOTE.F4,NOTE.A4,NOTE.C5],now,0.6,0.20);});}
+        else{const now=c.currentTime;chord([NOTE.F4,NOTE.A4,NOTE.C5],now,0.6,0.20);}
       }catch(e){}
     },
+    // resume() is called on every user touch/click to keep iOS AudioContext alive.
+    // iOS Safari suspends AudioContext when the page loses focus or after inactivity.
     resume:()=>{
-      try{if(ctx&&ctx.state==='suspended')ctx.resume();}catch(e){}
+      try{
+        // Create context if it doesn't exist yet (first touch on iOS)
+        if(!ctx) ctx=new(window.AudioContext||window.webkitAudioContext)();
+        // Resume if suspended (iOS does this after page blur)
+        if(ctx.state==='suspended') ctx.resume();
+      }catch(e){}
     }
   };
 })();
@@ -1896,15 +1906,44 @@ function roleChatColor(r) {
   return {Admin:'#D4AF37',Cashier:'#90caf9',Waiter:'#a5d6a7',Kitchen:'#ffb74d'}[r] || '#aaa';
 }
 
-// Translation target language — persisted across sessions
-let CHAT_TRANSLATE_TO = localStorage.getItem('ob_chat_translate') || '';
+// Translation target language — what language YOU want to read messages in
+let CHAT_TRANSLATE_TO = localStorage.getItem('ob_chat_translate') || 'en';
 function setChatTranslate(lang) {
   CHAT_TRANSLATE_TO = lang;
   localStorage.setItem('ob_chat_translate', lang);
   if (PAGE === 'pg-chat') renderGroupChat();
 }
 
-// Call MyMemory free translation API (no key needed, 5000 words/day free)
+// Translate a single message bubble on-demand (like Instagram/WhatsApp).
+// Called when user taps the "Translate" button on a received message.
+async function translateMsg(msgId, btnEl) {
+  const text = btnEl.getAttribute('data-text');
+  if (!text) return;
+  const targetLang = CHAT_TRANSLATE_TO || 'en';
+  btnEl.textContent = '⏳';
+  btnEl.disabled = true;
+  try {
+    const d = await API.translate(text, targetLang);
+    if (d.ok && d.translated) {
+      const container = document.getElementById('trans-' + msgId);
+      if (container) {
+        container.innerHTML = `<div style="margin-top:6px;padding-top:5px;border-top:1px solid rgba(255,255,255,.18);font-size:.78rem;font-style:italic;opacity:.9">🌐 ${escHtml(d.translated)}</div>`;
+      }
+      btnEl.textContent = '✓ Translated';
+      btnEl.style.color = '#a5d6a7';
+    } else {
+      btnEl.textContent = '🌐 Translate';
+      btnEl.disabled = false;
+      toast('Could not translate', 'Try again in a moment', 'warning');
+    }
+  } catch(e) {
+    btnEl.textContent = '🌐 Translate';
+    btnEl.disabled = false;
+    toast('Error', e.message, 'error');
+  }
+}
+
+// Call MyMemory free translation API via our server proxy
 async function translateText(text, to) {
   try {
     const d = await API.translate(text, to);
@@ -1940,12 +1979,11 @@ async function renderGroupChat() {
     </div>
     <div style="margin-top:8px">
       <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:.7rem;color:#888">Translate incoming to:</span>
+        <span style="font-size:.7rem;color:#888">Read messages in:</span>
         <button class="tab-btn${CHAT_TRANSLATE_TO==='en'?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('en')">🇬🇧 EN</button>
         <button class="tab-btn${CHAT_TRANSLATE_TO==='sw'?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('sw')">🇹🇿 SW</button>
         <button class="tab-btn${CHAT_TRANSLATE_TO==='ar'?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('ar')">🇸🇦 AR</button>
         <button class="tab-btn${CHAT_TRANSLATE_TO===''?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('')">🚫 Off</button>
-        <span id="translate-status" style="font-size:.68rem;color:#D4AF37;margin-left:4px"></span>
       </div>
       <div style="display:flex;gap:8px">
         <textarea id="chat-msg-input" placeholder="Type a message… (Enter to send, Shift+Enter for new line)" rows="1"
@@ -1967,14 +2005,19 @@ async function renderGroupChat() {
     box.innerHTML = msgs.map(m => {
       const mine  = m.sender_id === SESSION.id;
       const color = roleChatColor(m.sender_role);
-      const showTranslation = m.translated_en && m.translated_en.toLowerCase() !== m.text.toLowerCase();
+      // Show "Translate" button only on OTHER people's messages when a target language is selected
+      // This works like Instagram/WhatsApp — you tap Translate on each message you want to read
+      const canTranslate = !mine && CHAT_TRANSLATE_TO;
       return `<div style="display:flex;flex-direction:column;max-width:82%;${mine?'align-self:flex-end;align-items:flex-end':'align-self:flex-start;align-items:flex-start'}">
         ${!mine ? `<div style="font-size:.64rem;font-weight:800;color:${color};padding:0 4px;margin-bottom:2px">${escHtml(m.sender_name)} · ${m.sender_role}</div>` : ''}
         <div style="padding:9px 14px;border-radius:16px;font-size:.85rem;line-height:1.45;word-break:break-word;${mine?'background:#9A7E20;color:#fff;border-bottom-right-radius:4px':'background:#1a1a1a;border:1px solid rgba(212,175,55,.15);color:#fff;border-bottom-left-radius:4px'}">
           ${escHtml(m.text)}
-          ${showTranslation ? `<div style="margin-top:6px;padding-top:5px;border-top:1px solid rgba(255,255,255,.18);font-size:.76rem;opacity:.88;font-style:italic">🌐 ${escHtml(m.translated_en)}</div>` : ''}
+          <div id="trans-${m.id}"></div>
         </div>
-        <div style="font-size:.63rem;color:#666;margin-top:2px;padding:0 4px">${mine?'You · ':''}${fmtChatTime(m.created_at)}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:2px;padding:0 4px">
+          <span style="font-size:.63rem;color:#666">${mine?'You · ':''}${fmtChatTime(m.created_at)}</span>
+          ${canTranslate ? `<button id="tbtn-${m.id}" onclick="translateMsg('${m.id}',this)" data-text="${escHtml(m.text)}" style="background:none;border:none;color:#D4AF37;font-size:.7rem;cursor:pointer;padding:0;font-family:inherit">🌐 Translate</button>` : ''}
+        </div>
       </div>`;
     }).join('');
     box.scrollTop = box.scrollHeight;
@@ -1989,24 +2032,10 @@ async function sendChatMsg() {
   const text = inp?.value.trim();
   if (!text) return;
   inp.value = '';
-
-  let translated_en = null;
-  let original_lang = null;
-
-  // Auto-translate the message before sending if a target language is set
-  if (CHAT_TRANSLATE_TO) {
-    const statusEl = document.getElementById('translate-status');
-    if (statusEl) statusEl.textContent = '⏳ Translating…';
-    const result = await translateText(text, CHAT_TRANSLATE_TO);
-    if (result) { translated_en = result.translated; original_lang = result.from; }
-    if (statusEl) statusEl.textContent = result ? `✓ Translated from ${result.from}` : '';
-    setTimeout(() => { const s = document.getElementById('translate-status'); if (s) s.textContent = ''; }, 3000);
-  }
-
   try {
-    // API.sendChatMessage posts to /api/chat which broadcasts via Socket.IO
-    // The chat:message socket event will fire and re-render the page automatically
-    await API.sendChatMessage(text, translated_en, original_lang);
+    // Send message — Socket.IO chat:message event fires automatically
+    // and re-renders the chat page live for all connected users
+    await API.sendChatMessage(text, null, null);
   } catch(e) {
     toast('Error', e.message, 'error');
     inp.value = text; // restore on failure
@@ -2476,7 +2505,12 @@ async function renderCashierTrends(){
 
 // ── STARTUP ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',async()=>{
-  document.addEventListener('click',()=>SFX.resume(),{once:true});
+  // iOS Safari requires AudioContext.resume() inside a user gesture.
+  // We attach to BOTH click and touchstart so iPhone unlocks audio
+  // the moment the user first touches the screen.
+  const unlockAudio = () => { SFX.resume(); };
+  document.addEventListener('click', unlockAudio);
+  document.addEventListener('touchstart', unlockAudio, { passive: true });
   document.getElementById('l-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('l-pass').focus();});
   document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   window.addEventListener('resize',()=>{const sb=document.getElementById('sidebar');if(sb)sb.style.display=window.innerWidth>=768?'block':'none';});
@@ -2493,7 +2527,6 @@ document.addEventListener('DOMContentLoaded',async()=>{
     SESSION=d;
     document.getElementById('login-screen').style.display='none';
     initApp();
-    // Pre-load settings (Lipa Namba) into cache — Admin/Cashier only, graceful fail for other roles
     try{const sd=await API.getSettings();SETTINGS_CACHE=sd.settings||SETTINGS_CACHE;}catch(_){}
   }catch(_){}
 });
