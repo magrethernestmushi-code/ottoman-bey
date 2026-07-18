@@ -734,11 +734,18 @@ LOCAL.sendChatMessage = (sess, body) => {
   const db = loadDB();
   if (!db.chat) db.chat = [];
   const msg = {
-    id: uuid(), sender_id: sess.id, sender_name: sess.name,
-    sender_role: sess.role, text, created_at: nowISO()
+    id: uuid(),
+    sender_id: sess.id,
+    sender_name: sess.name,
+    sender_role: sess.role,
+    text,
+    // Optional: translated version in English (set by client after auto-translate)
+    translated_en: body.translated_en || null,
+    // Original detected language code (e.g. 'sw', 'ar') if translation happened
+    original_lang: body.original_lang || null,
+    created_at: nowISO()
   };
   db.chat.push(msg);
-  // Keep only last 500 messages in storage
   if (db.chat.length > 500) db.chat = db.chat.slice(-500);
   saveDB();
   return { ok: true, message: msg };

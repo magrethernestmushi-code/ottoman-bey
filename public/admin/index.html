@@ -953,6 +953,7 @@ async function initApp(){
   const defaults={Admin:'pg-admin-dash',Cashier:'pg-cashier',Waiter:'pg-waiter-orders',Kitchen:'pg-kitchen'};
   showPage(defaults[SESSION.role]||'pg-admin-dash');
   initSocket();
+  registerServiceWorker();
   if(window.innerWidth>=768)document.getElementById('sidebar').style.display='block';
 }
 
@@ -1114,13 +1115,43 @@ function initSocket(){
       if(message.sender_id!==SESSION.id){
         CHAT_UNREAD++;updateChatBadge();
         SFX.msg();
-        toast(`🗨️ ${message.sender_name} (${message.sender_role})`,message.text.slice(0,60)+(message.text.length>60?'…':''),'info');
+        toast(`🗨️ ${message.sender_name} (${message.sender_role})`,(message.translated_en||message.text).slice(0,80),'info');
+        showPushNotification(`🗨️ ${message.sender_name} (${message.sender_role})`,message.translated_en||message.text);
       }
     }
   });
   SOCKET.on('chat:cleared',()=>{
     CHAT_UNREAD=0;updateChatBadge();
     if(PAGE==='pg-chat')renderGroupChat();
+  });
+  SOCKET.on('push:notify',(payload)=>{
+    if(PAGE!=='pg-chat') showPushNotification(payload.title||'🗨️ Ottoman Bey',payload.body||'New message');
+  });
+}
+
+// ── SERVICE WORKER + PUSH NOTIFICATIONS ──────────────────────
+function registerServiceWorker(){
+  if(!('serviceWorker' in navigator))return;
+  navigator.serviceWorker.register('/sw.js').then(()=>{
+    if('Notification' in window&&Notification.permission==='default') Notification.requestPermission();
+  }).catch(e=>console.warn('SW failed:',e));
+}
+function showPushNotification(title,body,tag){
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  const show=()=>{try{new Notification(title,{body,icon:'/img/logo.png',tag:tag||'chat'});}catch(e){}};
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.ready.then(reg=>{
+      reg.showNotification(title,{body,icon:'/img/logo.png',tag:tag||'chat',vibrate:[200,100,200],data:{url:'/staff'}}).catch(show);
+    }).catch(show);
+  } else show();
+}
+function requestChatNotifPerm(){
+  if(!('Notification' in window)){toast('Not supported','Notifications not supported','error');return;}
+  if(Notification.permission==='granted'){toast('✅ Already enabled','You will receive notifications','success');return;}
+  Notification.requestPermission().then(perm=>{
+    const nb=document.getElementById('notif-btn');
+    if(perm==='granted'){toast('🔔 Notifications enabled!','You will be notified of new messages','success');if(nb)nb.textContent='🔔✅';}
+    else{toast('Blocked','Enable in browser settings','warning');if(nb)nb.textContent='🔕';}
   });
 }
 
@@ -1145,14 +1176,27 @@ async function renderGroupChat(){
   el.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div><div class="page-title">🗨️ Group Chat</div><div class="page-sub"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#4caf50;margin-right:5px;box-shadow:0 0 6px #4caf50"></span>Live — all staff</div></div>
-      ${SESSION.role==='Admin'?`<button class="btn btn-danger btn-sm" onclick="clearGroupChat()">🗑️ Clear</button>`:''}
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" id="notif-btn" onclick="requestChatNotifPerm()" title="Enable notifications">${'Notification' in window?(Notification.permission==='granted'?'🔔✅':Notification.permission==='denied'?'🔕':'🔔'):''}</button>
+        ${SESSION.role==='Admin'?`<button class="btn btn-danger btn-sm" onclick="clearGroupChat()">🗑️</button>`:''}
+      </div>
     </div>
-    <div id="chat-messages-box" style="height:calc(100vh - 260px);overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 0;min-height:200px"><div class="spinner"></div></div>
-    <div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid rgba(212,175,55,.12);margin-top:8px">
-      <textarea id="chat-msg-input" placeholder="Type a message… (Enter to send)" rows="1"
-        style="flex:1;background:#1a1a1a;border:1px solid rgba(212,175,55,.2);color:#fff;padding:10px 13px;border-radius:8px;font-size:.86rem;resize:none;min-height:42px;max-height:100px;font-family:inherit;outline:none"
-        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMsg();}"></textarea>
-      <button class="btn btn-gold" onclick="sendChatMsg()" style="align-self:flex-end">📤</button>
+    <div id="chat-messages-box" style="height:calc(100vh - 290px);overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 0;min-height:200px"><div class="spinner"></div></div>
+    <div style="margin-top:8px">
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:.7rem;color:#888">Translate to:</span>
+        <button class="tab-btn${CHAT_TRANSLATE_TO==='en'?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('en')">🇬🇧 EN</button>
+        <button class="tab-btn${CHAT_TRANSLATE_TO==='sw'?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('sw')">🇹🇿 SW</button>
+        <button class="tab-btn${CHAT_TRANSLATE_TO==='ar'?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('ar')">🇸🇦 AR</button>
+        <button class="tab-btn${CHAT_TRANSLATE_TO===''?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('')">🚫 Off</button>
+        <span id="translate-status" style="font-size:.68rem;color:#D4AF37;margin-left:4px"></span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <textarea id="chat-msg-input" placeholder="Type a message… (Enter to send, Shift+Enter for new line)" rows="1"
+          style="flex:1;background:#1a1a1a;border:1px solid rgba(212,175,55,.2);color:#fff;padding:10px 13px;border-radius:8px;font-size:.86rem;resize:none;min-height:42px;max-height:120px;font-family:inherit;outline:none"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMsg();}"></textarea>
+        <button class="btn btn-gold" onclick="sendChatMsg()" style="align-self:flex-end;min-width:48px">📤</button>
+      </div>
     </div>`;
   try{
     const d=await API.getChatMessages();
@@ -1165,18 +1209,31 @@ async function renderGroupChat(){
       const color=roleChatColor(m.sender_role);
       return`<div style="display:flex;flex-direction:column;max-width:80%;${mine?'align-self:flex-end;align-items:flex-end':'align-self:flex-start;align-items:flex-start'}">
         ${!mine?`<div style="font-size:.64rem;font-weight:800;color:${color};padding:0 4px;margin-bottom:2px">${escHtml(m.sender_name)} · ${m.sender_role}</div>`:''}
-        <div style="padding:9px 14px;border-radius:16px;font-size:.85rem;line-height:1.4;word-break:break-word;${mine?'background:#9A7E20;color:#fff;border-bottom-right-radius:4px':'background:#1a1a1a;border:1px solid rgba(212,175,55,.15);color:#fff;border-bottom-left-radius:4px'}">${escHtml(m.text)}</div>
+        <div style="padding:9px 14px;border-radius:16px;font-size:.85rem;line-height:1.45;word-break:break-word;${mine?'background:#9A7E20;color:#fff;border-bottom-right-radius:4px':'background:#1a1a1a;border:1px solid rgba(212,175,55,.15);color:#fff;border-bottom-left-radius:4px'}">${escHtml(m.text)}${m.translated_en&&m.translated_en.toLowerCase()!==m.text.toLowerCase()?`<div style="margin-top:6px;padding-top:5px;border-top:1px solid rgba(255,255,255,.18);font-size:.76rem;opacity:.88;font-style:italic">🌐 ${escHtml(m.translated_en)}</div>`:''}</div>
         <div style="font-size:.64rem;color:#666;margin-top:3px;padding:0 4px">${mine?'You':''} ${fmtChatTime(m.created_at)}</div>
       </div>`;
     }).join('');
     box.scrollTop=box.scrollHeight;
   }catch(e){const box=document.getElementById('chat-messages-box');if(box)box.innerHTML=`<div style="text-align:center;color:#ef9a9a;padding:20px">${e.message}</div>`;}
 }
+let CHAT_TRANSLATE_TO=localStorage.getItem('ob_chat_translate')||'';
+function setChatTranslate(lang){CHAT_TRANSLATE_TO=lang;localStorage.setItem('ob_chat_translate',lang);if(PAGE==='pg-chat')renderGroupChat();}
+async function translateText(text,to){try{const d=await API.translate(text,to);if(d.ok&&d.translated&&d.translated.toLowerCase()!==text.toLowerCase())return{translated:d.translated,from:d.from};}catch(e){}return null;}
+
 async function sendChatMsg(){
   const inp=document.getElementById('chat-msg-input');
   const text=inp?.value.trim();if(!text)return;
   inp.value='';
-  try{await API.sendChatMessage(text);}catch(e){toast('Error',e.message,'error');inp.value=text;}
+  let translated_en=null,original_lang=null;
+  if(CHAT_TRANSLATE_TO){
+    const s=document.getElementById('translate-status');if(s)s.textContent='⏳ Translating…';
+    const r=await translateText(text,CHAT_TRANSLATE_TO);
+    if(r){translated_en=r.translated;original_lang=r.from;}
+    if(s)s.textContent=r?`✓ from ${r.from}`:'';
+    setTimeout(()=>{const s2=document.getElementById('translate-status');if(s2)s2.textContent='';},3000);
+  }
+  try{await API.sendChatMessage(text,translated_en,original_lang);}
+  catch(e){toast('Error',e.message,'error');inp.value=text;}
 }
 async function clearGroupChat(){
   if(!confirm('Clear all chat history for everyone?'))return;

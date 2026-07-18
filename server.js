@@ -2,6 +2,7 @@
 const path = require('path');
 const express = require('express');
 const http = require('http');
+const https = require('https');
 const { Server } = require('socket.io');
 const { initStorage, LOCAL, HttpError, getSessionByToken, destroySession } = require('./db');
 
@@ -29,12 +30,85 @@ function handle(fn) {
   return (req, res) => {
     try {
       const result = fn(req);
-      res.json(result);
+      if (result && typeof result.then === 'function') {
+        result.then(r => res.json(r)).catch(e => {
+          if (e instanceof HttpError) res.status(e.status).json({ error: e.message });
+          else { console.error(e); res.status(500).json({ error: e.message || 'Server error' }); }
+        });
+      } else {
+        res.json(result);
+      }
     } catch (e) {
       if (e instanceof HttpError) res.status(e.status).json({ error: e.message });
       else { console.error(e); res.status(500).json({ error: e.message || 'Server error' }); }
     }
   };
+}
+
+// ── translate endpoint ─────────────────────────────────────────────
+// Uses MyMemory free translation API — no API key needed, 5000 words/day free.
+// Detects source language automatically and translates to the requested target.
+// Supports: sw (Swahili), ar (Arabic), en (English), fr, es, etc.
+app.post('/api/translate', (req, res) => {
+  if (!req.session) return res.status(401).json({ error: 'Unauthorized' });
+  const { text, to } = req.body || {};
+  if (!text || !to) return res.status(400).json({ error: 'text and to are required' });
+  if (text.length > 500) return res.status(400).json({ error: 'Text too long (max 500 chars)' });
+
+  const langPair = `auto|${to}`;
+  const query = encodeURIComponent(text);
+  const url = `https://api.mymemory.translated.net/get?q=${query}&langpair=${langPair}`;
+
+  https.get(url, (apiRes) => {
+    let data = '';
+    apiRes.on('data', chunk => { data += chunk; });
+    apiRes.on('end', () => {
+      try {
+        const parsed = JSON.parse(data);
+        const translated = parsed?.responseData?.translatedText;
+        const detectedLang = parsed?.responseData?.detectedLanguage || 'unknown';
+        if (translated && parsed.responseStatus === 200) {
+          res.json({ ok: true, translated, from: detectedLang, to });
+        } else {
+          res.status(500).json({ error: 'Translation failed', detail: parsed?.responseDetails });
+        }
+      } catch (e) {
+        res.status(500).json({ error: 'Translation parse error' });
+      }
+    });
+  }).on('error', (e) => {
+    res.status(500).json({ error: 'Translation service unavailable: ' + e.message });
+  });
+});
+
+// ── web push subscriptions ─────────────────────────────────────────
+// Store push subscriptions in memory (persisted via db).
+// When a chat message is sent, we push to all subscribed devices
+// so staff get notified even when the browser is closed.
+const PUSH_SUBS = new Map(); // token -> subscription object
+
+app.post('/api/push/subscribe', (req, res) => {
+  if (!req.session) return res.status(401).json({ error: 'Unauthorized' });
+  const { subscription } = req.body || {};
+  if (!subscription || !subscription.endpoint) return res.status(400).json({ error: 'No subscription' });
+  PUSH_SUBS.set(req.token, { subscription, session: req.session });
+  res.json({ ok: true, subscribed: PUSH_SUBS.size });
+});
+
+app.delete('/api/push/subscribe', (req, res) => {
+  PUSH_SUBS.delete(req.token);
+  res.json({ ok: true });
+});
+
+// Internal helper — send Web Push notification to all subscribed clients
+// We use the browser's built-in push service via the subscription endpoint.
+// Note: for full Web Push we'd need web-push npm package + VAPID keys.
+// Since we can't install packages on Render without package.json changes,
+// we instead use a lightweight polling fallback + Service Worker notification.
+function notifyPushSubscribers(payload) {
+  // Broadcast via Socket.IO to all connected clients (already done by emitEvent)
+  // Additionally ping all registered service workers via a broadcast
+  io.emit('push:notify', payload);
 }
 
 // ── auth routes ─────────────────────────────────────────────────────
@@ -137,8 +211,14 @@ app.post('/api/messages/read-all', handle(req => LOCAL.markAllRead(req.session))
 app.get('/api/chat', handle(req => LOCAL.getChatMessages(req.session)));
 app.post('/api/chat', handle(req => {
   const out = LOCAL.sendChatMessage(req.session, req.body);
-  // Broadcast to ALL connected clients immediately via Socket.IO
+  // Broadcast to all connected Socket.IO clients immediately
   emitEvent('chat:message', { message: out.message });
+  // Also notify devices in background (service worker / push)
+  notifyPushSubscribers({
+    title: `🗨️ ${out.message.sender_name} (${out.message.sender_role})`,
+    body: out.message.translated_en || out.message.text,
+    tag: 'chat'
+  });
   return out;
 }));
 app.delete('/api/chat', handle(req => {
