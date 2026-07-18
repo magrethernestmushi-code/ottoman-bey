@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: ottoman-bey
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
