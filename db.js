@@ -325,8 +325,19 @@ LOCAL.dashboard = (sess) => {
   const approvalsToday = db.orders.filter(o => dateOf(o.updated_at) === today && ['confirmed', 'paid', 'cancelled'].includes(o.status)).length;
   const paymentsToday = db.orders.filter(o => dateOf(o.updated_at) === today && o.status === 'paid').length;
   const cashierStats = db.staff.filter(s => s.role === 'Cashier' && s.is_active).map(s => {
+    const myOrders = db.orders.filter(o => o.cashier_id === s.id && dateOf(o.created_at) === today);
+    const myPaid = myOrders.filter(o => o.status === 'paid');
+    const myRevenue = myPaid.reduce((sum, o) => sum + o.total_amount, 0);
+    const myApprovals = db.orders.filter(o => o.cashier_id === s.id && dateOf(o.updated_at) === today).length;
     const plateReturns = db.orders.filter(o => dateOf(o.updated_at) === today && o.plate_return_approved_by === s.id).length;
-    return { id: s.id, full_name: s.full_name, approvals_today: approvalsToday, payments_processed: paymentsToday, plate_returns_approved: plateReturns };
+    return {
+      id: s.id,
+      full_name: s.full_name,
+      approvals_today: myApprovals,
+      payments_processed: myPaid.length,
+      revenue_today: myRevenue,
+      plate_returns_approved: plateReturns
+    };
   });
 
   return { revenue, ordersToday, active, staff: staffCount, bestSelling, recentOrders, plateAlerts, outOfStockItems,
@@ -509,8 +520,24 @@ LOCAL.getOrders = (sess, query) => {
   query = query || {};
   const db = loadDB();
   let list = db.orders.slice();
-  if (sess.role === 'Waiter') list = list.filter(o => o.waiter_id === sess.id);
-  else if (query.waiter_id) list = list.filter(o => o.waiter_id === query.waiter_id);
+
+  if (sess.role === 'Waiter') {
+    // Waiter sees only their own orders
+    list = list.filter(o => o.waiter_id === sess.id);
+  } else if (sess.role === 'Cashier') {
+    // Each cashier is independent:
+    // - ALL cashiers see pending_payment orders (so any cashier can approve incoming orders)
+    // - Once approved/paid, each cashier sees only orders THEY handled (cashier_id = their id)
+    // - Plate alerts: cashier sees plates they are responsible for
+    list = list.filter(o =>
+      o.status === 'pending_payment' ||           // any cashier can approve new orders
+      o.cashier_id === sess.id ||                  // orders this cashier approved or paid
+      (o.plates_taken_at && !o.plates_returned && o.cashier_id === sess.id) // their plate alerts
+    );
+  } else if (query.waiter_id) {
+    list = list.filter(o => o.waiter_id === query.waiter_id);
+  }
+
   if (query.status) {
     const statuses = String(query.status).split(',').map(s => s.trim());
     list = list.filter(o => statuses.includes(o.status));
@@ -591,7 +618,11 @@ LOCAL.approveOrder = (sess, id) => {
   const o = findOrder(id);
   if (!o) throw new HttpError(404, 'Not found');
   if (o.status !== 'pending_payment') throw new HttpError(400, 'Order is not pending payment');
-  o.status = 'confirmed'; o.updated_at = nowISO();
+  // Record WHICH cashier approved this order — used for per-cashier stats and filtering
+  o.status = 'confirmed';
+  o.cashier_id = sess.id;
+  o.cashier_name = sess.name;
+  o.updated_at = nowISO();
   saveDB();
   return { ok: true, order: enrichOrder(o) };
 };
@@ -610,6 +641,12 @@ LOCAL.setStatus = (sess, id, status, payment_method) => {
   if (payment_method) o.payment_method = payment_method;
   if (status === 'preparing' && !o.prep_started_at) o.prep_started_at = nowISO();
   if (status === 'ready' && !o.prep_ready_at) o.prep_ready_at = nowISO();
+  // When cashier marks as paid, record who processed the payment
+  if (status === 'paid' && sess.role === 'Cashier') {
+    if (!o.cashier_id) o.cashier_id = sess.id;
+    if (!o.cashier_name) o.cashier_name = sess.name;
+    o.paid_by = sess.id;
+  }
   saveDB();
   return { ok: true, order: enrichOrder(o) };
 };
@@ -624,6 +661,34 @@ LOCAL.platesReturned = (sess, id) => {
   const o = findOrder(id);
   if (o) { o.plates_returned = 1; o.plates_returned_at = nowISO(); o.plate_return_approved_by = sess.id; o.updated_at = nowISO(); saveDB(); }
   return { ok: true, order: enrichOrder(o) };
+};
+
+LOCAL.getCashierStats = (sess) => {
+  requireRole(sess, 'Cashier', 'Admin');
+  const db = loadDB();
+  const today = dateOf(nowISO());
+  // Filter only orders this cashier handled
+  const myOrders = db.orders.filter(o => o.cashier_id === sess.id);
+  const myToday  = myOrders.filter(o => dateOf(o.created_at) === today);
+  const myPaid   = myToday.filter(o => o.status === 'paid');
+  const myActive = myOrders.filter(o => !['paid','cancelled'].includes(o.status));
+  const myPlateAlerts = myOrders.filter(o => o.plates_taken_at && !o.plates_returned &&
+    Math.floor((Date.now() - new Date(o.plates_taken_at).getTime()) / 60000) > 15);
+  const revenue = myPaid.reduce((s, o) => s + o.total_amount, 0);
+  return {
+    cashier_id:   sess.id,
+    cashier_name: sess.name,
+    stats: {
+      revenue_today:       revenue,
+      paid_orders_today:   myPaid.length,
+      orders_today:        myToday.length,
+      active_orders:       myActive.length,
+      plate_alerts:        myPlateAlerts.length,
+    },
+    paid_orders: myPaid.slice(-20).map(enrichOrder),
+    active_orders: myActive.map(enrichOrder),
+    plate_alerts: myPlateAlerts.map(enrichOrder),
+  };
 };
 
 LOCAL.getMessages = (sess) => {

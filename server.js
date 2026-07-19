@@ -111,6 +111,9 @@ function notifyPushSubscribers(payload) {
   io.emit('push:notify', payload);
 }
 
+// Each cashier gets their own independent stats dashboard
+app.get('/api/cashier/my-stats', handle(req => LOCAL.getCashierStats(req.session)));
+
 // ── auth routes ─────────────────────────────────────────────────────
 app.post('/api/login', handle(req => {
   const { username, password } = req.body || {};

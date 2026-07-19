@@ -1366,36 +1366,35 @@ function setCTab(tab,btn){
 }
 
 async function renderCashier(){
-  // KPIs
+  // Load personal cashier stats — each cashier sees ONLY their own numbers
   try{
-    const d=await API.getOrders({});
-    const orders=d.orders||[];
-    const today=new Date().toISOString().slice(0,10);
-    const paid=orders.filter(o=>o.status==='paid'&&o.created_at.slice(0,10)===today);
-    const pending=orders.filter(o=>o.status==='pending_payment');
-    const revenue=paid.reduce((s,o)=>s+o.total_amount,0);
-    const alerts=orders.filter(o=>platesOverdue(o));
-    document.getElementById('c-pending').textContent=pending.length;
-    document.getElementById('c-paid').textContent=paid.length;
-    document.getElementById('c-sales').textContent=fmtTZS(revenue);
-    document.getElementById('c-plates').textContent=alerts.length;
-    if(alerts.length){alerts.forEach(o=>{if(!o._alerted){SFX.alert();o._alerted=true;}});}
+    const s = await API.getMyCashierStats();
+    const stats = s.stats || {};
+    document.getElementById('c-pending').textContent = stats.active_orders || 0;
+    document.getElementById('c-paid').textContent    = stats.paid_orders_today || 0;
+    document.getElementById('c-sales').textContent   = fmtTZS(stats.revenue_today || 0);
+    document.getElementById('c-plates').textContent  = stats.plate_alerts || 0;
+    // Update page subtitle to show cashier's own name
+    const sub = document.querySelector('#pg-cashier .page-sub');
+    if(sub) sub.textContent = `${SESSION.name} — Your shift dashboard`;
+    if(stats.plate_alerts > 0) SFX.alert();
   }catch(_){}
 
-  const el=document.getElementById('cashier-grid');
-  el.innerHTML=`<div class="spinner"></div>`;
+  const el = document.getElementById('cashier-grid');
+  el.innerHTML = `<div class="spinner"></div>`;
   try{
-    const search=document.getElementById('cashier-search').value.toLowerCase();
-    const d=await API.getOrders({});
-    let orders=d.orders||[];
+    const search = document.getElementById('cashier-search').value.toLowerCase();
+    // getOrders already filters by this cashier's ID on the server
+    const d = await API.getOrders({});
+    let orders = d.orders || [];
 
-    if(C_TAB==='pending')   orders=orders.filter(o=>o.status==='pending_payment');
-    else if(C_TAB==='approved') orders=orders.filter(o=>['confirmed','preparing'].includes(o.status));
-    else if(C_TAB==='ready') orders=orders.filter(o=>['ready','served'].includes(o.status));
-    else if(C_TAB==='paid')  orders=orders.filter(o=>o.status==='paid');
-    else if(C_TAB==='plates') orders=orders.filter(o=>platesOverdue(o));
+    if(C_TAB==='pending')   orders = orders.filter(o=>o.status==='pending_payment');
+    else if(C_TAB==='approved') orders = orders.filter(o=>['confirmed','preparing'].includes(o.status));
+    else if(C_TAB==='ready') orders = orders.filter(o=>['ready','served'].includes(o.status));
+    else if(C_TAB==='paid')  orders = orders.filter(o=>o.status==='paid');
+    else if(C_TAB==='plates') orders = orders.filter(o=>platesOverdue(o));
 
-    if(search) orders=orders.filter(o=>(o.order_number+' '+(o.waiter_name||'')).toLowerCase().includes(search));
+    if(search) orders = orders.filter(o=>(o.order_number+' '+(o.waiter_name||'')+' '+(o.customer_name||'')).toLowerCase().includes(search));
 
     if(!orders.length){el.innerHTML=`<div class="empty-state"><span class="es-i">💰</span><p>No orders in this view</p></div>`;return;}
     el.innerHTML=`<div class="grid g2">${orders.map(o=>orderCard(o,'cashier')).join('')}</div>`;
