@@ -1205,6 +1205,8 @@ async function renderGroupChat(){
     const box=document.getElementById('chat-messages-box');
     if(!box)return;
     if(!msgs.length){box.innerHTML=`<div style="text-align:center;padding:40px 20px;color:#666"><div style="font-size:2rem;margin-bottom:8px">🗨️</div><div>No messages yet — start the conversation!</div></div>`;return;}
+    CHAT_MSG_CACHE={};
+    msgs.forEach(m=>{CHAT_MSG_CACHE[m.id]=m.text;});
     box.innerHTML=msgs.map(m=>{
       const mine=m.sender_id===SESSION.id;
       const color=roleChatColor(m.sender_role);
@@ -1214,7 +1216,7 @@ async function renderGroupChat(){
         <div style="padding:9px 14px;border-radius:16px;font-size:.85rem;line-height:1.45;word-break:break-word;${mine?'background:#9A7E20;color:#fff;border-bottom-right-radius:4px':'background:#1a1a1a;border:1px solid rgba(212,175,55,.15);color:#fff;border-bottom-left-radius:4px'}">${escHtml(m.text)}<div id="trans-${m.id}"></div></div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:2px;padding:0 4px">
           <span style="font-size:.63rem;color:#666">${mine?'You · ':''}${fmtChatTime(m.created_at)}</span>
-          ${canTranslate?`<button id="tbtn-${m.id}" onclick="translateMsg('${m.id}',this)" data-text="${escHtml(m.text)}" style="background:none;border:none;color:#D4AF37;font-size:.7rem;cursor:pointer;padding:0;font-family:inherit">🌐 Translate</button>`:''}
+          ${canTranslate?`<button id="tbtn-${m.id}" onclick="translateMsg('${m.id}',this)" style="background:none;border:none;color:#D4AF37;font-size:.7rem;cursor:pointer;padding:0;font-family:inherit;text-decoration:underline">🌐 Translate</button>`:''}
         </div>
       </div>`;
     }).join('');
@@ -1225,9 +1227,10 @@ let CHAT_TRANSLATE_TO=localStorage.getItem('ob_chat_translate')||'';
 function setChatTranslate(lang){CHAT_TRANSLATE_TO=lang;localStorage.setItem('ob_chat_translate',lang);if(PAGE==='pg-chat')renderGroupChat();}
 async function translateText(text,to){try{const d=await API.translate(text,to);if(d.ok&&d.translated&&d.translated.toLowerCase()!==text.toLowerCase())return{translated:d.translated,from:d.from};}catch(e){}return null;}
 
+let CHAT_MSG_CACHE={};
 async function translateMsg(msgId,btnEl){
-  const text=btnEl.getAttribute('data-text');
-  if(!text)return;
+  const text=CHAT_MSG_CACHE[msgId];
+  if(!text){toast('Error','Message not found','error');return;}
   const targetLang=CHAT_TRANSLATE_TO||'en';
   btnEl.textContent='⏳';btnEl.disabled=true;
   try{

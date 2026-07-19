@@ -1915,9 +1915,12 @@ function setChatTranslate(lang) {
 
 // Translate a single message bubble on-demand (like Instagram/WhatsApp).
 // Called when user taps the "Translate" button on a received message.
+// Store chat messages in memory so translateMsg can look up text by id
+let CHAT_MSG_CACHE = {};
+
 async function translateMsg(msgId, btnEl) {
-  const text = btnEl.getAttribute('data-text');
-  if (!text) return;
+  const text = CHAT_MSG_CACHE[msgId];
+  if (!text) { toast('Error', 'Message not found', 'error'); return; }
   const targetLang = CHAT_TRANSLATE_TO || 'en';
   btnEl.textContent = '⏳';
   btnEl.disabled = true;
@@ -2001,11 +2004,14 @@ async function renderGroupChat() {
       box.innerHTML = `<div style="text-align:center;padding:40px 20px;color:#666"><div style="font-size:2.2rem;margin-bottom:8px">🗨️</div><div>No messages yet — say something!</div></div>`;
       return;
     }
+    // Cache message text by id so translateMsg can look it up safely
+    // (avoids HTML encoding bugs with data-text attributes)
+    CHAT_MSG_CACHE = {};
+    msgs.forEach(m => { CHAT_MSG_CACHE[m.id] = m.text; });
+
     box.innerHTML = msgs.map(m => {
       const mine  = m.sender_id === SESSION.id;
       const color = roleChatColor(m.sender_role);
-      // Show "Translate" button only on OTHER people's messages when a target language is selected
-      // This works like Instagram/WhatsApp — you tap Translate on each message you want to read
       const canTranslate = !mine && CHAT_TRANSLATE_TO;
       return `<div style="display:flex;flex-direction:column;max-width:82%;${mine?'align-self:flex-end;align-items:flex-end':'align-self:flex-start;align-items:flex-start'}">
         ${!mine ? `<div style="font-size:.64rem;font-weight:800;color:${color};padding:0 4px;margin-bottom:2px">${escHtml(m.sender_name)} · ${m.sender_role}</div>` : ''}
@@ -2015,7 +2021,7 @@ async function renderGroupChat() {
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:2px;padding:0 4px">
           <span style="font-size:.63rem;color:#666">${mine?'You · ':''}${fmtChatTime(m.created_at)}</span>
-          ${canTranslate ? `<button id="tbtn-${m.id}" onclick="translateMsg('${m.id}',this)" data-text="${escHtml(m.text)}" style="background:none;border:none;color:#D4AF37;font-size:.7rem;cursor:pointer;padding:0;font-family:inherit">🌐 Translate</button>` : ''}
+          ${canTranslate ? `<button id="tbtn-${m.id}" onclick="translateMsg('${m.id}',this)" style="background:none;border:none;color:#D4AF37;font-size:.7rem;cursor:pointer;padding:0;font-family:inherit;text-decoration:underline">🌐 Translate</button>` : ''}
         </div>
       </div>`;
     }).join('');
