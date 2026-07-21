@@ -1905,10 +1905,6 @@ function roleChatColor(r) {
   return {Admin:'#D4AF37',Cashier:'#90caf9',Waiter:'#a5d6a7',Kitchen:'#ffb74d'}[r] || '#aaa';
 }
 
- catch(e) {}
-  return null;
-}
-
 async function renderGroupChat() {
   CHAT_UNREAD = 0; updateChatBadge();
   const el = document.getElementById('pg-chat');
