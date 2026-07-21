@@ -89,11 +89,8 @@
     exportBackup: function () { return apiCall('GET', '/api/backup').then(function (d) { return JSON.stringify(d, null, 2); }); },
     importBackup: function (json) { return apiCall('POST', '/api/backup', typeof json === 'string' ? JSON.parse(json) : json); },
     getChatMessages: function () { return apiCall('GET', '/api/chat'); },
-    sendChatMessage: function (text, translated_en, original_lang) {
-      return apiCall('POST', '/api/chat', { text: text, translated_en: translated_en || null, original_lang: original_lang || null });
-    },
-    clearChat: function () { return apiCall('DELETE', '/api/chat'); },
-    translate: function (text, to) { return apiCall('POST', '/api/translate', { text: text, to: to }); },
+    sendChatMessage: function (text) { return apiCall('POST', '/api/chat', { text: text }); },
+    clearChat: function () { return apiCall('DELETE', '/api/chat'); }); },
     getMyCashierStats: function () { return apiCall('GET', '/api/cashier/my-stats'); }
   };
 

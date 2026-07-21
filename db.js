@@ -804,10 +804,6 @@ LOCAL.sendChatMessage = (sess, body) => {
     sender_name: sess.name,
     sender_role: sess.role,
     text,
-    // Optional: translated version in English (set by client after auto-translate)
-    translated_en: body.translated_en || null,
-    // Original detected language code (e.g. 'sw', 'ar') if translation happened
-    original_lang: body.original_lang || null,
     created_at: nowISO()
   };
   db.chat.push(msg);

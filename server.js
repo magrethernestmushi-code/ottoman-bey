@@ -2,7 +2,6 @@
 const path = require('path');
 const express = require('express');
 const http = require('http');
-const https = require('https');
 const { Server } = require('socket.io');
 const { initStorage, LOCAL, HttpError, getSessionByToken, destroySession } = require('./db');
 
@@ -44,42 +43,6 @@ function handle(fn) {
     }
   };
 }
-
-// ── translate endpoint ─────────────────────────────────────────────
-// Uses MyMemory free translation API — no API key needed, 5000 words/day free.
-// Detects source language automatically and translates to the requested target.
-// Supports: sw (Swahili), ar (Arabic), en (English), fr, es, etc.
-app.post('/api/translate', (req, res) => {
-  if (!req.session) return res.status(401).json({ error: 'Unauthorized' });
-  const { text, to } = req.body || {};
-  if (!text || !to) return res.status(400).json({ error: 'text and to are required' });
-  if (text.length > 500) return res.status(400).json({ error: 'Text too long (max 500 chars)' });
-
-  const langPair = `auto|${to}`;
-  const query = encodeURIComponent(text);
-  const url = `https://api.mymemory.translated.net/get?q=${query}&langpair=${langPair}`;
-
-  https.get(url, (apiRes) => {
-    let data = '';
-    apiRes.on('data', chunk => { data += chunk; });
-    apiRes.on('end', () => {
-      try {
-        const parsed = JSON.parse(data);
-        const translated = parsed?.responseData?.translatedText;
-        const detectedLang = parsed?.responseData?.detectedLanguage || 'unknown';
-        if (translated && parsed.responseStatus === 200) {
-          res.json({ ok: true, translated, from: detectedLang, to });
-        } else {
-          res.status(500).json({ error: 'Translation failed', detail: parsed?.responseDetails });
-        }
-      } catch (e) {
-        res.status(500).json({ error: 'Translation parse error' });
-      }
-    });
-  }).on('error', (e) => {
-    res.status(500).json({ error: 'Translation service unavailable: ' + e.message });
-  });
-});
 
 // ── web push subscriptions ─────────────────────────────────────────
 // Store push subscriptions in memory (persisted via db).
@@ -219,7 +182,7 @@ app.post('/api/chat', handle(req => {
   // Also notify devices in background (service worker / push)
   notifyPushSubscribers({
     title: `🗨️ ${out.message.sender_name} (${out.message.sender_role})`,
-    body: out.message.translated_en || out.message.text,
+    body: out.message.text,
     tag: 'chat'
   });
   return out;

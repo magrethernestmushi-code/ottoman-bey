@@ -1147,11 +1147,11 @@ function initSocket(){
         SFX.msg();
         // Toast notification in-app
         toast(`🗨️ ${message.sender_name} (${message.sender_role})`,
-          (message.translated_en || message.text).slice(0,80),'info');
+          message.text.slice(0,80),'info');
         // Push notification — works even when phone screen is off or tab is in background
         showPushNotification(
           `🗨️ ${message.sender_name} (${message.sender_role})`,
-          message.translated_en || message.text
+          message.text
         );
       }
     }
@@ -1905,54 +1905,7 @@ function roleChatColor(r) {
   return {Admin:'#D4AF37',Cashier:'#90caf9',Waiter:'#a5d6a7',Kitchen:'#ffb74d'}[r] || '#aaa';
 }
 
-// Translation target language — what language YOU want to read messages in
-let CHAT_TRANSLATE_TO = localStorage.getItem('ob_chat_translate') || 'en';
-function setChatTranslate(lang) {
-  CHAT_TRANSLATE_TO = lang;
-  localStorage.setItem('ob_chat_translate', lang);
-  if (PAGE === 'pg-chat') renderGroupChat();
-}
-
-// Translate a single message bubble on-demand (like Instagram/WhatsApp).
-// Called when user taps the "Translate" button on a received message.
-// Store chat messages in memory so translateMsg can look up text by id
-let CHAT_MSG_CACHE = {};
-
-async function translateMsg(msgId, btnEl) {
-  const text = CHAT_MSG_CACHE[msgId];
-  if (!text) { toast('Error', 'Message not found', 'error'); return; }
-  const targetLang = CHAT_TRANSLATE_TO || 'en';
-  btnEl.textContent = '⏳';
-  btnEl.disabled = true;
-  try {
-    const d = await API.translate(text, targetLang);
-    if (d.ok && d.translated) {
-      const container = document.getElementById('trans-' + msgId);
-      if (container) {
-        container.innerHTML = `<div style="margin-top:6px;padding-top:5px;border-top:1px solid rgba(255,255,255,.18);font-size:.78rem;font-style:italic;opacity:.9">🌐 ${escHtml(d.translated)}</div>`;
-      }
-      btnEl.textContent = '✓ Translated';
-      btnEl.style.color = '#a5d6a7';
-    } else {
-      btnEl.textContent = '🌐 Translate';
-      btnEl.disabled = false;
-      toast('Could not translate', 'Try again in a moment', 'warning');
-    }
-  } catch(e) {
-    btnEl.textContent = '🌐 Translate';
-    btnEl.disabled = false;
-    toast('Error', e.message, 'error');
-  }
-}
-
-// Call MyMemory free translation API via our server proxy
-async function translateText(text, to) {
-  try {
-    const d = await API.translate(text, to);
-    if (d.ok && d.translated && d.translated.toLowerCase() !== text.toLowerCase()) {
-      return { translated: d.translated, from: d.from };
-    }
-  } catch(e) {}
+ catch(e) {}
   return null;
 }
 
@@ -1980,13 +1933,6 @@ async function renderGroupChat() {
       <div class="spinner"></div>
     </div>
     <div style="margin-top:8px">
-      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:.7rem;color:#888">Read messages in:</span>
-        <button class="tab-btn${CHAT_TRANSLATE_TO==='en'?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('en')">🇬🇧 EN</button>
-        <button class="tab-btn${CHAT_TRANSLATE_TO==='sw'?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('sw')">🇹🇿 SW</button>
-        <button class="tab-btn${CHAT_TRANSLATE_TO==='ar'?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('ar')">🇸🇦 AR</button>
-        <button class="tab-btn${CHAT_TRANSLATE_TO===''?' active':''}" style="padding:3px 9px;font-size:.68rem" onclick="setChatTranslate('')">🚫 Off</button>
-      </div>
       <div style="display:flex;gap:8px">
         <textarea id="chat-msg-input" placeholder="Type a message… (Enter to send, Shift+Enter for new line)" rows="1"
           style="flex:1;background:#1a1a1a;border:1px solid rgba(212,175,55,.2);color:#fff;padding:10px 13px;border-radius:8px;font-size:.86rem;resize:none;min-height:42px;max-height:120px;font-family:inherit;outline:none"
@@ -2004,24 +1950,19 @@ async function renderGroupChat() {
       box.innerHTML = `<div style="text-align:center;padding:40px 20px;color:#666"><div style="font-size:2.2rem;margin-bottom:8px">🗨️</div><div>No messages yet — say something!</div></div>`;
       return;
     }
-    // Cache message text by id so translateMsg can look it up safely
-    // (avoids HTML encoding bugs with data-text attributes)
-    CHAT_MSG_CACHE = {};
     msgs.forEach(m => { CHAT_MSG_CACHE[m.id] = m.text; });
 
     box.innerHTML = msgs.map(m => {
       const mine  = m.sender_id === SESSION.id;
       const color = roleChatColor(m.sender_role);
-      const canTranslate = !mine && CHAT_TRANSLATE_TO;
       return `<div style="display:flex;flex-direction:column;max-width:82%;${mine?'align-self:flex-end;align-items:flex-end':'align-self:flex-start;align-items:flex-start'}">
         ${!mine ? `<div style="font-size:.64rem;font-weight:800;color:${color};padding:0 4px;margin-bottom:2px">${escHtml(m.sender_name)} · ${m.sender_role}</div>` : ''}
         <div style="padding:9px 14px;border-radius:16px;font-size:.85rem;line-height:1.45;word-break:break-word;${mine?'background:#9A7E20;color:#fff;border-bottom-right-radius:4px':'background:#1a1a1a;border:1px solid rgba(212,175,55,.15);color:#fff;border-bottom-left-radius:4px'}">
           ${escHtml(m.text)}
-          <div id="trans-${m.id}"></div>
+          
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:2px;padding:0 4px">
           <span style="font-size:.63rem;color:#666">${mine?'You · ':''}${fmtChatTime(m.created_at)}</span>
-          ${canTranslate ? `<button id="tbtn-${m.id}" onclick="translateMsg('${m.id}',this)" style="background:none;border:none;color:#D4AF37;font-size:.7rem;cursor:pointer;padding:0;font-family:inherit;text-decoration:underline">🌐 Translate</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -2040,7 +1981,7 @@ async function sendChatMsg() {
   try {
     // Send message — Socket.IO chat:message event fires automatically
     // and re-renders the chat page live for all connected users
-    await API.sendChatMessage(text, null, null);
+    await API.sendChatMessage(text);
   } catch(e) {
     toast('Error', e.message, 'error');
     inp.value = text; // restore on failure
