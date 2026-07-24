@@ -1948,7 +1948,8 @@ async function renderGroupChat() {
       box.innerHTML = `<div style="text-align:center;padding:40px 20px;color:#666"><div style="font-size:2.2rem;margin-bottom:8px">🗨️</div><div>No messages yet — say something!</div></div>`;
       return;
     }
-    msgs.forEach(m => { CHAT_MSG_CACHE[m.id] = m.text; });
+    // (per-message cache removed — was referencing an undeclared variable
+    //  and crashing Group Chat for every non-Admin role)
 
     box.innerHTML = msgs.map(m => {
       const mine  = m.sender_id === SESSION.id;
