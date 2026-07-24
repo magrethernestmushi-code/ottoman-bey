@@ -282,7 +282,7 @@ LOCAL.dashboard = (sess) => {
   const paidToday = db.orders.filter(o => o.status === 'paid' && dateOf(o.created_at) === today);
   const revenue = paidToday.reduce((s, o) => s + o.total_amount, 0);
   const ordersToday = db.orders.filter(o => dateOf(o.created_at) === today).length;
-  const active = db.orders.filter(o => o.status !== 'paid' && o.status !== 'cancelled').length;
+  const active = db.orders.filter(o => o.status !== 'paid' && o.status !== 'cancelled' && dateOf(o.created_at) === today).length;
   const staffCount = db.staff.filter(s => s.is_active).length;
 
   const salesMap = {};
