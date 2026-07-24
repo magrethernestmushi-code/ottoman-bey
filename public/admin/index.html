@@ -1698,7 +1698,9 @@ async function renderAdminDash(){
     document.getElementById('admin-plates').innerHTML=d.plateAlerts?.length?d.plateAlerts.map(o=>`
       <div class="flex-b plate-alert" style="padding:8px 10px;border-radius:8px;margin-bottom:6px">
         <div><div class="fw7">${o.order_number}</div><div class="muted">${o.waiter_name}</div></div>
-        <div class="t-danger fw8">⚠️ ${age(o.plates_taken_at)}</div>
+        <div class="tc"><div class="t-danger fw8">⚠️ ${age(o.plates_taken_at)}</div>
+          <button class="btn btn-danger btn-sm" style="margin-top:4px" onclick="platesReturned('${o.id}')">✅ Futa / Clear</button>
+        </div>
       </div>`).join(''):`<div class="empty-state" style="padding:20px"><span class="es-i">✅</span><p>No plate alerts</p></div>`;
     // Low stock
     document.getElementById('admin-lowstock').innerHTML=d.outOfStockItems?.length?d.outOfStockItems.map(i=>`
