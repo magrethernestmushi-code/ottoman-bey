@@ -414,7 +414,10 @@ LOCAL.getReports = (sess, from, to) => {
   const today = todayStr();
   const f = from || today, t = to || today;
   const db = loadDB();
-  const inRange = db.orders.filter(o => o.status === 'paid' && dateOf(o.created_at) >= f && dateOf(o.created_at) <= t);
+  let inRange = db.orders.filter(o => o.status === 'paid' && dateOf(o.created_at) >= f && dateOf(o.created_at) <= t);
+  // Each cashier sees only the orders THEY personally processed (their own till).
+  // Admin sees every order from every cashier, so nothing is hidden from management.
+  if (sess.role === 'Cashier') inRange = inRange.filter(o => o.cashier_id === sess.id);
   const summary = { total_orders: inRange.length,
     revenue: inRange.reduce((a, o) => a + o.total_amount, 0),
     subtotal: inRange.reduce((a, o) => a + o.subtotal, 0),
@@ -432,7 +435,20 @@ LOCAL.getReports = (sess, from, to) => {
     dailyMap[d].orders++; dailyMap[d].revenue += o.total_amount;
   });
   const daily = Object.values(dailyMap).sort((a, b) => a.day.localeCompare(b.day));
-  return { summary, byMethod: Object.values(byMethodMap), daily };
+  // Full order-by-order log — date, time, payment method, amount, and which
+  // cashier handled it — so Admin can see every transaction in detail.
+  const orders = inRange.slice().sort((a, b) => b.updated_at.localeCompare(a.updated_at)).map(o => ({
+    id: o.id,
+    order_number: o.order_number,
+    table_number: o.table_number,
+    date: dateOf(o.updated_at || o.created_at),
+    paid_at: o.updated_at || o.created_at,
+    payment_method: o.payment_method || null,
+    amount: o.total_amount,
+    cashier_id: o.cashier_id || null,
+    cashier_name: o.cashier_name || null
+  }));
+  return { summary, byMethod: Object.values(byMethodMap), daily, orders };
 };
 
 LOCAL.getMenu = (sess) => {
@@ -613,6 +629,66 @@ LOCAL.createOrder = (sess, body) => {
   const full = enrichOrder(findOrder(orderId));
   return { ok: true, order: full, _event: initialStatus === 'confirmed' ? 'order:approved' : 'order:new' };
 };
+// ── quick sale (standalone simple cashier till) ─────────────────────
+// One-step sale: cashier picks items + payment method, order is created
+// AND marked paid immediately (no kitchen/approval workflow). Used by the
+// separate, minimal /sale page — decrements stock and records date/time/
+// payment/amount just like a normal order, so it shows up in reports and
+// on the Admin dashboard automatically.
+LOCAL.quickSale = (sess, body) => {
+  requireRole(sess, 'Cashier', 'Admin');
+  body = body || {};
+  const { items, payment_method } = body;
+  if (!items || !items.length) throw new HttpError(400, 'Chagua angalau kipengele kimoja');
+  const validMethods = ['cash', 'card', 'mpesa', 'tigopesa', 'airtelmoney', 'bank'];
+  if (!validMethods.includes(payment_method)) throw new HttpError(400, 'Chagua njia ya malipo');
+  const db = loadDB(), today = todayStr();
+
+  const grouped = {};
+  items.forEach(item => {
+    grouped[item.menu_item_id] = (grouped[item.menu_item_id] || 0) + Number(item.quantity);
+  });
+  Object.keys(grouped).forEach(menuItemId => {
+    const mi = findMenuItem(menuItemId);
+    if (!mi) throw new HttpError(400, 'Kipengele hakipatikani');
+    const postedToday = mi.stock_date === today;
+    const available = postedToday ? mi.stock_count : 0;
+    if (!available || available < grouped[menuItemId]) {
+      throw new HttpError(400, mi.name + ' hazitoshi (zilizobaki: ' + (available || 0) + ')');
+    }
+  });
+
+  let subtotal = 0;
+  const resolvedItems = items.map(item => {
+    const mi = findMenuItem(item.menu_item_id);
+    const lineTotal = mi.price * item.quantity;
+    subtotal += lineTotal;
+    return { menu_item_id: mi.id, quantity: item.quantity, unit_price: mi.price, line_total: lineTotal };
+  });
+  Object.keys(grouped).forEach(menuItemId => {
+    const mi = findMenuItem(menuItemId);
+    mi.stock_count = Math.max(0, mi.stock_count - grouped[menuItemId]);
+  });
+
+  const orderId = uuid();
+  const orderNum = 'ORD-' + Date.now().toString().slice(-6);
+  const total = round2(subtotal);
+  const now = nowISO();
+
+  db.orders.push({
+    id: orderId, order_number: orderNum, waiter_id: sess.id, table_number: null,
+    status: 'paid', payment_method, subtotal, tax_amount: 0, total_amount: total,
+    notes: '', plates_taken_at: null, plates_returned: 0, plates_returned_at: null,
+    plate_return_approved_by: null, created_at: now, updated_at: now,
+    prep_started_at: null, prep_ready_at: null, items: resolvedItems,
+    cashier_id: sess.id, cashier_name: sess.name, paid_by: sess.id
+  });
+  saveDB();
+
+  const full = enrichOrder(findOrder(orderId));
+  return { ok: true, order: full };
+};
+
 LOCAL.approveOrder = (sess, id) => {
   requireRole(sess, 'Cashier', 'Admin');
   const o = findOrder(id);

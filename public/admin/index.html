@@ -1820,6 +1820,22 @@ async function loadReports(){
         <div class="card"><div class="card-hd"><span class="card-hd-title">Daily Breakdown</span></div>
           <div class="card-bd">${daily.length?daily.map(d=>`<div class="flex-b" style="padding:7px 0;border-bottom:1px solid rgba(212,175,55,.07)"><span class="fw7">${d.day}</span><div><span class="tg fw8">${fmtTZS(d.revenue)}</span> <span class="muted">(${d.orders} orders)</span></div></div>`).join(''):'<div class="empty-state"><p>No data</p></div>'}</div>
         </div>
+      </div>
+      <div class="card mt-12">
+        <div class="card-hd"><span class="card-hd-title">📋 Order Log — every transaction (${(d.orders||[]).length})</span></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr>
+          <th>Order #</th><th>Table</th><th>Date</th><th>Time</th><th>Cashier</th><th>Payment</th><th>Amount</th>
+        </tr></thead><tbody>
+          ${(d.orders||[]).length?(d.orders||[]).map(o=>`<tr>
+            <td class="fw7">${o.order_number}</td>
+            <td>${o.table_number||'—'}</td>
+            <td>${o.date}</td>
+            <td>${fmtTime(o.paid_at)}</td>
+            <td>${o.cashier_name||'—'}</td>
+            <td>${(o.payment_method||'—').toUpperCase()}</td>
+            <td class="tg fw7">${fmtTZS(o.amount)}</td>
+          </tr>`).join(''):`<tr><td colspan="7" class="muted tc">No orders in this range</td></tr>`}
+        </tbody></table></div>
       </div>`;
   }catch(e){toast('Error',e.message,'error');}
 }
