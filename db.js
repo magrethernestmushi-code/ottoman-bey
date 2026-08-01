@@ -252,11 +252,12 @@ function enrichOrder(o) {
   if (!o) return null;
   const waiter = findStaff(o.waiter_id) || {};
   const items = (o.items || []).map(it => {
-    const mi = findMenuItem(it.menu_item_id);
-    if (!mi) return null;
-    return { id: it.id, order_id: o.id, menu_item_id: it.menu_item_id, quantity: it.quantity,
-      unit_price: it.unit_price, line_total: it.line_total, item_name: mi.name, icon: mi.icon };
-  }).filter(Boolean);
+    const mi = it.menu_item_id ? findMenuItem(it.menu_item_id) : null;
+    return { id: it.id, order_id: o.id, menu_item_id: it.menu_item_id || null, quantity: it.quantity,
+      unit_price: it.unit_price, line_total: it.line_total,
+      item_name: it.item_name || (mi && mi.name) || 'Kipengele',
+      icon: it.icon || (mi && mi.icon) || '🍽️' };
+  });
   const out = Object.assign({}, o);
   out.waiter_name = waiter.full_name;
   out.items = items;
@@ -630,44 +631,33 @@ LOCAL.createOrder = (sess, body) => {
   return { ok: true, order: full, _event: initialStatus === 'confirmed' ? 'order:approved' : 'order:new' };
 };
 // ── quick sale (standalone simple cashier till) ─────────────────────
-// One-step sale: cashier picks items + payment method, order is created
-// AND marked paid immediately (no kitchen/approval workflow). Used by the
-// separate, minimal /sale page — decrements stock and records date/time/
-// payment/amount just like a normal order, so it shows up in reports and
-// on the Admin dashboard automatically.
+// One-step sale, fully independent from the kitchen/menu/stock/table
+// system. Cashier just types what was sold + price and taps which
+// waiter served it. No stock is touched, no menu item is required —
+// this is a free-form sales log, not a kitchen order.
 LOCAL.quickSale = (sess, body) => {
   requireRole(sess, 'Cashier', 'Admin');
   body = body || {};
-  const { items, payment_method } = body;
-  if (!items || !items.length) throw new HttpError(400, 'Chagua angalau kipengele kimoja');
+  const { items, waiter_id, payment_method } = body;
+  if (!items || !items.length) throw new HttpError(400, 'Ongeza angalau chakula kimoja');
+  if (!waiter_id) throw new HttpError(400, 'Chagua mhudumu (waiter)');
+  const waiter = findStaff(waiter_id);
+  if (!waiter || waiter.role !== 'Waiter' || !waiter.is_active) throw new HttpError(400, 'Mhudumu si sahihi');
   const validMethods = ['cash', 'card', 'mpesa', 'tigopesa', 'airtelmoney', 'bank'];
   if (!validMethods.includes(payment_method)) throw new HttpError(400, 'Chagua njia ya malipo');
-  const db = loadDB(), today = todayStr();
-
-  const grouped = {};
-  items.forEach(item => {
-    grouped[item.menu_item_id] = (grouped[item.menu_item_id] || 0) + Number(item.quantity);
-  });
-  Object.keys(grouped).forEach(menuItemId => {
-    const mi = findMenuItem(menuItemId);
-    if (!mi) throw new HttpError(400, 'Kipengele hakipatikani');
-    const postedToday = mi.stock_date === today;
-    const available = postedToday ? mi.stock_count : 0;
-    if (!available || available < grouped[menuItemId]) {
-      throw new HttpError(400, mi.name + ' hazitoshi (zilizobaki: ' + (available || 0) + ')');
-    }
-  });
+  const db = loadDB();
 
   let subtotal = 0;
   const resolvedItems = items.map(item => {
-    const mi = findMenuItem(item.menu_item_id);
-    const lineTotal = mi.price * item.quantity;
+    const name = String(item.name || '').trim();
+    const qty = Number(item.quantity);
+    const price = Number(item.price);
+    if (!name) throw new HttpError(400, 'Andika jina la chakula');
+    if (!qty || qty <= 0) throw new HttpError(400, 'Idadi si sahihi kwa ' + name);
+    if (isNaN(price) || price < 0) throw new HttpError(400, 'Bei si sahihi kwa ' + name);
+    const lineTotal = round2(price * qty);
     subtotal += lineTotal;
-    return { menu_item_id: mi.id, quantity: item.quantity, unit_price: mi.price, line_total: lineTotal };
-  });
-  Object.keys(grouped).forEach(menuItemId => {
-    const mi = findMenuItem(menuItemId);
-    mi.stock_count = Math.max(0, mi.stock_count - grouped[menuItemId]);
+    return { menu_item_id: null, quantity: qty, unit_price: price, line_total: lineTotal, item_name: name, icon: '🍽️' };
   });
 
   const orderId = uuid();
@@ -676,7 +666,7 @@ LOCAL.quickSale = (sess, body) => {
   const now = nowISO();
 
   db.orders.push({
-    id: orderId, order_number: orderNum, waiter_id: sess.id, table_number: null,
+    id: orderId, order_number: orderNum, waiter_id, table_number: null,
     status: 'paid', payment_method, subtotal, tax_amount: 0, total_amount: total,
     notes: '', plates_taken_at: null, plates_returned: 0, plates_returned_at: null,
     plate_return_approved_by: null, created_at: now, updated_at: now,
