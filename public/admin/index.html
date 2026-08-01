@@ -1842,6 +1842,21 @@ async function loadReports(){
             <td class="tg fw7">${fmtTZS(o.amount)}</td>
           </tr>`).join(''):`<tr><td colspan="7" class="muted tc">No orders in this range</td></tr>`}
         </tbody></table></div>
+      </div>
+      <div class="card mt-12">
+        <div class="card-hd"><span class="card-hd-title">❌ Cancelled Orders (${(d.cancelled||[]).length})</span></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr>
+          <th>Order #</th><th>Table</th><th>Date</th><th>Time</th><th>Cashier</th><th>Amount</th>
+        </tr></thead><tbody>
+          ${(d.cancelled||[]).length?(d.cancelled||[]).map(o=>`<tr>
+            <td class="fw7">${o.order_number}</td>
+            <td>${o.table_number||'—'}</td>
+            <td>${o.date}</td>
+            <td>${fmtTime(o.cancelled_at)}</td>
+            <td>${o.cashier_name||'—'}</td>
+            <td class="tg fw7">${fmtTZS(o.amount)}</td>
+          </tr>`).join(''):`<tr><td colspan="6" class="muted tc">No cancelled orders in this range</td></tr>`}
+        </tbody></table></div>
       </div>`;
   }catch(e){toast('Error',e.message,'error');}
 }
@@ -1972,9 +1987,28 @@ async function renderAdminSettings(){
     SETTINGS_CACHE=d.settings;
     const lipaNamba=d.settings.lipa_namba||'';
     const qsEnabled=d.settings.quick_sale_enabled!==false;
+    let statusHtml='';
+    try{
+      const st=await API.getSystemStatus();
+      const ok=st.mongo_connected;
+      statusHtml=`
+      <div class="card mb-12" style="border:1px solid ${ok?'rgba(46,204,113,.4)':'rgba(231,76,60,.4)'}">
+        <div class="card-hd"><span class="card-hd-title">${ok?'✅':'⚠️'} Hali ya Database</span></div>
+        <div class="card-bd">
+          <div class="fw7" style="color:${ok?'#2ECC71':'#E74C3C'}">
+            ${ok?'MongoDB imeunganishwa — data yako inahifadhiwa kudumu':'MongoDB HAIJAUNGANISHWA — data itapotea ukiwa na restart/deploy!'}
+          </div>
+          <div class="muted mt-8" style="font-size:.8rem">
+            Storage: ${st.storage_mode} · Oda: ${st.orders_count} · Wafanyakazi: ${st.staff_count} · Menyu: ${st.menu_items_count}
+          </div>
+          ${ok?'':'<div class="muted mt-8" style="font-size:.8rem">Nenda Render → Environment → weka MONGODB_URI (Atlas connection string) kisha deploy upya.</div>'}
+        </div>
+      </div>`;
+    }catch(e){}
 
     el.innerHTML=`
       <div class="page-hd"><div class="page-title">${t('settings.title')}</div></div>
+      ${statusHtml}
       <div class="card mb-12">
         <div class="card-hd"><span class="card-hd-title">💰 Mfumo wa Mauzo (Cashier Quick Sale)</span></div>
         <div class="card-bd">

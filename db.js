@@ -451,7 +451,22 @@ LOCAL.getReports = (sess, from, to) => {
     cashier_id: o.cashier_id || null,
     cashier_name: o.cashier_name || null
   }));
-  return { summary, byMethod: Object.values(byMethodMap), daily, orders };
+  // Cancelled orders in range — kept as a separate log (not counted toward
+  // revenue) so cleared/cancelled orders remain visible and searchable.
+  let cancelledInRange = db.orders.filter(o => o.status === 'cancelled' && dateOf(o.updated_at || o.created_at) >= f && dateOf(o.updated_at || o.created_at) <= t);
+  if (sess.role === 'Cashier') cancelledInRange = cancelledInRange.filter(o => o.cashier_id === sess.id);
+  const cancelled = cancelledInRange.slice().sort((a, b) => b.updated_at.localeCompare(a.updated_at)).map(o => ({
+    id: o.id,
+    order_number: o.order_number,
+    table_number: o.table_number,
+    date: dateOf(o.updated_at || o.created_at),
+    cancelled_at: o.updated_at || o.created_at,
+    amount: o.total_amount,
+    waiter_id: o.waiter_id || null,
+    cashier_id: o.cashier_id || null,
+    cashier_name: o.cashier_name || null
+  }));
+  return { summary, byMethod: Object.values(byMethodMap), daily, orders, cancelled };
 };
 
 LOCAL.getMenu = (sess) => {
@@ -928,7 +943,24 @@ LOCAL.clearChat = (sess) => {
   return { ok: true };
 };
 
+function isMongoConnected() { return !!_mongoCollection; }
+
+// ── system status (Admin diagnostic: is MongoDB actually connected,
+// or are we silently running on the ephemeral local file that resets
+// on every Render restart?) ────────────────────────────────────────
+LOCAL.getSystemStatus = (sess) => {
+  requireRole(sess, 'Admin');
+  const db = loadDB();
+  return {
+    mongo_connected: isMongoConnected(),
+    storage_mode: isMongoConnected() ? 'mongodb' : 'local_file',
+    orders_count: db.orders.length,
+    staff_count: db.staff.length,
+    menu_items_count: db.menu_items.length
+  };
+};
+
 module.exports = {
   initStorage, loadDB, saveDB, LOCAL, HttpError,
-  getSessionByToken, destroySession, requireSession
+  getSessionByToken, destroySession, requireSession, isMongoConnected
 };

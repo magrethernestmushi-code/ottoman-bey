@@ -107,6 +107,7 @@ app.get('/api/waiter-availability', handle(req => LOCAL.getWaiterAvailability(re
 app.get('/api/reports', handle(req => LOCAL.getReports(req.session, req.query.from, req.query.to)));
 app.post('/api/admin/reset-data', handle(req => LOCAL.resetOperationalData(req.session)));
 app.post('/api/admin/clear-active', handle(req => LOCAL.clearActiveOrders(req.session)));
+app.get('/api/admin/system-status', handle(req => LOCAL.getSystemStatus(req.session)));
 
 // ── menu ──────────────────────────────────────────────────────────────
 app.get('/api/menu', handle(req => LOCAL.getMenu(req.session)));
