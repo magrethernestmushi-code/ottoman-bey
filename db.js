@@ -547,6 +547,33 @@ LOCAL.resetOperationalData = (sess) => {
   return { ok: true, orders_cleared: ordersCleared, attendance_cleared: attendanceCleared };
 };
 
+// ── clear active orders + plate alerts (Admin button: cancels every
+// order that is not already paid/cancelled, and marks every open plate
+// alert as returned. Paid orders, sales history, staff accounts, menu,
+// and attendance are all left untouched — this is a lighter-weight
+// "start the floor clean" action than the full data reset above) ─────
+LOCAL.clearActiveOrders = (sess) => {
+  requireRole(sess, 'Admin');
+  const db = loadDB();
+  const now = nowISO();
+  let ordersCleared = 0, platesCleared = 0;
+  db.orders.forEach(o => {
+    if (o.status !== 'paid' && o.status !== 'cancelled') {
+      o.status = 'cancelled';
+      o.updated_at = now;
+      ordersCleared++;
+    }
+    if (o.plates_taken_at && !o.plates_returned) {
+      o.plates_returned = 1;
+      o.plates_returned_at = now;
+      o.plate_return_approved_by = sess.id;
+      platesCleared++;
+    }
+  });
+  saveDB();
+  return { ok: true, orders_cleared: ordersCleared, plates_cleared: platesCleared };
+};
+
 LOCAL.getOrders = (sess, query) => {
   requireSession(sess);
   query = query || {};

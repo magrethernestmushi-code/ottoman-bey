@@ -2023,10 +2023,28 @@ async function renderAdminSettings(){
           </div>
           <button class="btn" style="width:100%;background:#E74C3C;color:#fff" onclick="doResetData()">🗑️ Futa Oda Zote na Mahudhurio</button>
         </div>
+        <div class="card" style="margin-top:12px">
+          <h3>Safisha Oda Zinazoendelea + Plate Alerts</h3>
+          <div style="color:#666;font-size:13px;margin:8px 0">
+            Hii itafuta <b>oda zote zinazoendelea</b> (bado hazijalipwa) kwa wahudumu wote, na kusafisha
+            <b>plate alerts</b> zote — hakuna mhudumu atakayebaki na oda "hewani".
+            Oda zilizolipwa tayari, taarifa za mauzo, mahudhurio, wafanyakazi na menyu <b>haziguswi kabisa</b>.
+          </div>
+          <button class="btn" style="width:100%;background:#E67E22;color:#fff" onclick="doClearActive()">🧹 Safisha Oda Zinazoendelea</button>
+        </div>
       </div>`;
   }catch(e){
     el.innerHTML+=`<div class="empty-state"><span class="es-i">⚠️</span><p>${e.message}</p></div>`;
   }
+}
+async function doClearActive(){
+  const step1=confirm('Una uhakika? Hii itafuta OD A ZINAZOENDELEA za wahudumu wote na kusafisha PLATE ALERTS zote. Oda zilizolipwa hazitaguswa.');
+  if(!step1)return;
+  try{
+    const d=await API.clearActiveOrders();
+    toast('✅ Imekamilika',`Oda ${d.orders_cleared} zimefutwa na plate alerts ${d.plates_cleared} zimesafishwa.`,'success');
+    renderAdminSettings();
+  }catch(e){toast('Error',e.message,'error');}
 }
 async function doResetData(){
   const step1=confirm('Una uhakika? Hii itafuta OD A ZOTE na MAHUDHURIO YOTE ya zamani — hatua hii HAIWEZI kurudishwa.');
