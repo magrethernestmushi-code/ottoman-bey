@@ -532,6 +532,19 @@ LOCAL.postStock = (sess, id, count) => {
   return { ok: true, item: Object.assign({}, mi, { category_name: c.name, cat_icon: c.icon, stock: mi.stock_count, posted_today: true }) };
 };
 
+// ── reset (Admin button: wipe orders + attendance history, keep
+// staff accounts/passwords, menu, categories, chat, and settings) ────
+LOCAL.resetOperationalData = (sess) => {
+  requireRole(sess, 'Admin');
+  const db = loadDB();
+  const ordersCleared = db.orders.length;
+  const attendanceCleared = db.attendance.length;
+  db.orders = [];
+  db.attendance = [];
+  saveDB();
+  return { ok: true, orders_cleared: ordersCleared, attendance_cleared: attendanceCleared };
+};
+
 LOCAL.getOrders = (sess, query) => {
   requireSession(sess);
   query = query || {};

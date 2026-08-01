@@ -105,6 +105,7 @@ app.delete('/api/staff/:id', handle(req => LOCAL.deleteStaff(req.session, req.pa
 app.get('/api/roles', handle(req => LOCAL.getRoles(req.session)));
 app.get('/api/waiter-availability', handle(req => LOCAL.getWaiterAvailability(req.session)));
 app.get('/api/reports', handle(req => LOCAL.getReports(req.session, req.query.from, req.query.to)));
+app.post('/api/admin/reset-data', handle(req => LOCAL.resetOperationalData(req.session)));
 
 // ── menu ──────────────────────────────────────────────────────────────
 app.get('/api/menu', handle(req => LOCAL.getMenu(req.session)));

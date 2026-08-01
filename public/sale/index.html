@@ -154,7 +154,7 @@ async function login(){
   btn.disabled=true;btn.textContent='Inaingia…';
   try{
     const d=await api('/api/login',{method:'POST',body:JSON.stringify({username,password})});
-    if(!['Cashier','Admin'].includes(d.user.role)){err.textContent='Akaunti hii si ya Cashier';btn.disabled=false;btn.textContent='🔐 Ingia';return;}
+    if(d.user.role!=='Cashier'){err.textContent='Akaunti hii si ya Cashier. Ukurasa huu ni kwa ajili ya Cashier tu.';btn.disabled=false;btn.textContent='🔐 Ingia';await api('/api/logout',{method:'POST'}).catch(()=>{});return;}
     TOKEN=d.token;SESSION=d.user;
     sessionStorage.setItem('sale_token',TOKEN);
     initApp();

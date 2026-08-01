@@ -91,7 +91,8 @@
     getChatMessages: function () { return apiCall('GET', '/api/chat'); },
     sendChatMessage: function (text) { return apiCall('POST', '/api/chat', { text: text }); },
     clearChat: function () { return apiCall('DELETE', '/api/chat'); },
-    getMyCashierStats: function () { return apiCall('GET', '/api/cashier/my-stats'); }
+    getMyCashierStats: function () { return apiCall('GET', '/api/cashier/my-stats'); },
+    resetOperationalData: function () { return apiCall('POST', '/api/admin/reset-data'); }
   };
 
   // ── realtime bus, backed by a single persistent Socket.io connection ──

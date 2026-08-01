@@ -1990,10 +1990,32 @@ async function renderAdminSettings(){
             💡 ${t('admin.backupHint')}
           </div>
         </div>
+      </div>
+      <div class="card" style="border-color:rgba(231,76,60,.35)">
+        <div class="card-hd"><span class="card-hd-title" style="color:#E74C3C">🗑️ Futa Taarifa Zote (Anza Upya)</span></div>
+        <div class="card-bd">
+          <div class="muted mb-8" style="font-size:.82rem;line-height:1.5">
+            Hii itafuta <b>oda zote na mahudhurio yote</b> ya zamani kabisa — mfumo utaanza na kumbukumbu tupu.
+            Akaunti za wafanyakazi na password zao <b>hazitaguswa</b>, wala menyu ya vyakula.
+            Hatua hii <b>haiwezi kurudishwa nyuma</b> — pakua Backup kwanza (juu) kama unataka kuhifadhi taarifa.
+          </div>
+          <button class="btn" style="width:100%;background:#E74C3C;color:#fff" onclick="doResetData()">🗑️ Futa Oda Zote na Mahudhurio</button>
+        </div>
       </div>`;
   }catch(e){
     el.innerHTML+=`<div class="empty-state"><span class="es-i">⚠️</span><p>${e.message}</p></div>`;
   }
+}
+async function doResetData(){
+  const step1=confirm('Una uhakika? Hii itafuta OD A ZOTE na MAHUDHURIO YOTE ya zamani — hatua hii HAIWEZI kurudishwa.');
+  if(!step1)return;
+  const step2=prompt('Kuthibitisha, andika neno FUTA kisha bonyeza OK:');
+  if(step2!=='FUTA'){toast('Imesitishwa','Hakuna kilichofutwa','error');return;}
+  try{
+    const d=await API.resetOperationalData();
+    toast('✅ Imekamilika',`Oda ${d.orders_cleared} na mahudhurio ${d.attendance_cleared} zimefutwa. Mfumo umeanza upya.`,'success');
+    renderAdminSettings();
+  }catch(e){toast('Error',e.message,'error');}
 }
 async function doExportBackup(){
   try{
