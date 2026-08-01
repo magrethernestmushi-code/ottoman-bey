@@ -46,7 +46,7 @@ function seedDB() {
     orders: [],
     messages: [],
     attendance: [],
-    settings: { lipa_namba: '' },
+    settings: { lipa_namba: '', quick_sale_enabled: true },
     _seq: { categories: 0, menu_items: 0 }
   };
   function nextId(kind) { db._seq[kind] += 1; return db._seq[kind]; }
@@ -117,8 +117,9 @@ function migrateDB(db) {
   db.orders = db.orders || [];
   db.messages = db.messages || [];
   db.staff = db.staff || [];
-  db.settings = db.settings || { lipa_namba: '' };
+  db.settings = db.settings || { lipa_namba: '', quick_sale_enabled: true };
   if (typeof db.settings.lipa_namba === 'undefined') db.settings.lipa_namba = '';
+  if (typeof db.settings.quick_sale_enabled === 'undefined') db.settings.quick_sale_enabled = true;
   delete db.settings.vat_enabled;
   delete db.settings.vat_rate;
   db.attendance = db.attendance || [];
@@ -350,6 +351,7 @@ LOCAL.updateSettings = (sess, body) => {
   requireRole(sess, 'Admin');
   const db = loadDB(); body = body || {};
   if (typeof body.lipa_namba !== 'undefined') db.settings.lipa_namba = String(body.lipa_namba).trim();
+  if (typeof body.quick_sale_enabled !== 'undefined') db.settings.quick_sale_enabled = !!body.quick_sale_enabled;
   saveDB();
   return { settings: Object.assign({}, db.settings) };
 };
@@ -651,6 +653,8 @@ LOCAL.createOrder = (sess, body) => {
 LOCAL.quickSale = (sess, body) => {
   requireRole(sess, 'Cashier', 'Admin');
   body = body || {};
+  const db = loadDB();
+  if (!db.settings.quick_sale_enabled) throw new HttpError(403, 'Mfumo wa Mauzo umezimwa na Admin kwa sasa');
   const { items, waiter_id, payment_method } = body;
   if (!items || !items.length) throw new HttpError(400, 'Ongeza angalau chakula kimoja');
   if (!waiter_id) throw new HttpError(400, 'Chagua mhudumu (waiter)');
@@ -658,7 +662,6 @@ LOCAL.quickSale = (sess, body) => {
   if (!waiter || waiter.role !== 'Waiter' || !waiter.is_active) throw new HttpError(400, 'Mhudumu si sahihi');
   const validMethods = ['cash', 'card', 'mpesa', 'tigopesa', 'airtelmoney', 'bank'];
   if (!validMethods.includes(payment_method)) throw new HttpError(400, 'Chagua njia ya malipo');
-  const db = loadDB();
 
   let subtotal = 0;
   const resolvedItems = items.map(item => {

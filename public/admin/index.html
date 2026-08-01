@@ -248,6 +248,12 @@
 .perf-table tr:last-child td{border-bottom:none}
 .perf-table tr:hover td{background:rgba(212,175,55,.04)}
 .perf-section-hd{display:flex;align-items:center;gap:8px;margin:18px 0 10px;font-size:.95rem;font-weight:800;color:var(--gold)}
+.switch{position:relative;display:inline-block;width:48px;height:28px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#3a2a1a;border:1px solid rgba(212,175,55,.3);border-radius:28px;transition:.2s}
+.switch-slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;bottom:3px;background:#f3e9d8;border-radius:50%;transition:.2s}
+.switch input:checked+.switch-slider{background:var(--green,#2ECC71)}
+.switch input:checked+.switch-slider:before{transform:translateX(20px)}
 </style>
 </head>
 <body>
@@ -1965,9 +1971,25 @@ async function renderAdminSettings(){
     const d=await API.getSettings();
     SETTINGS_CACHE=d.settings;
     const lipaNamba=d.settings.lipa_namba||'';
+    const qsEnabled=d.settings.quick_sale_enabled!==false;
 
     el.innerHTML=`
       <div class="page-hd"><div class="page-title">${t('settings.title')}</div></div>
+      <div class="card mb-12">
+        <div class="card-hd"><span class="card-hd-title">💰 Mfumo wa Mauzo (Cashier Quick Sale)</span></div>
+        <div class="card-bd">
+          <div class="flex-b" style="align-items:center">
+            <div>
+              <div class="fw7">Ukurasa wa /sale (Cashier)</div>
+              <div class="muted" style="font-size:.8rem;margin-top:2px">Ukiuzima, Cashier hataweza kuandika mauzo mapya kwenye ukurasa huo.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="qs-toggle" ${qsEnabled?'checked':''} onchange="toggleQuickSale(this.checked)">
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
       <div class="card mb-12">
         <div class="card-hd"><span class="card-hd-title">💳 ${t('admin.lipaNamba')}</span></div>
         <div class="card-bd">
@@ -2016,6 +2038,16 @@ async function doResetData(){
     toast('✅ Imekamilika',`Oda ${d.orders_cleared} na mahudhurio ${d.attendance_cleared} zimefutwa. Mfumo umeanza upya.`,'success');
     renderAdminSettings();
   }catch(e){toast('Error',e.message,'error');}
+}
+async function toggleQuickSale(enabled){
+  const box=document.getElementById('qs-toggle');
+  try{
+    await API.updateSettings({quick_sale_enabled:enabled});
+    toast(enabled?'✅ Imewashwa':'🔒 Imezimwa', enabled?'Cashier anaweza kutumia ukurasa wa Mauzo tena.':'Cashier hataweza kuandika mauzo mapya.', 'success');
+  }catch(e){
+    if(box)box.checked=!enabled; // revert UI on failure
+    toast('Error',e.message,'error');
+  }
 }
 async function doExportBackup(){
   try{

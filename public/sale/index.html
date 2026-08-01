@@ -77,6 +77,13 @@
     <div class="stat"><div class="stat-v" id="st-revenue">TZS 0</div><div class="stat-l">Mapato Leo</div></div>
   </div>
 
+  <div class="card" id="disabled-banner" style="display:none;border-color:rgba(231,76,60,.4);text-align:center">
+    <div style="font-size:1.6rem;margin-bottom:6px">🔒</div>
+    <div class="fw7" style="color:#E74C3C">Mfumo wa Mauzo Umezimwa</div>
+    <div class="muted" style="margin-top:4px">Admin amezima ukurasa huu kwa sasa. Wasiliana na Admin.</div>
+  </div>
+
+  <div id="entry-form">
   <!-- Add item -->
   <div class="card">
     <div class="cd">1. Andika Chakula</div>
@@ -114,6 +121,7 @@
       <button class="pm-btn" onclick="selPM('bank',this)">🏦 Benki</button>
     </div>
     <button class="btn btn-green" onclick="completeSale()" id="sale-btn">✅ Kamilisha Mauzo</button>
+  </div>
   </div>
 
   <div class="card">
@@ -172,7 +180,15 @@ async function initApp(){
   document.getElementById('login-view').style.display='none';
   document.getElementById('main-view').style.display='block';
   document.getElementById('who').textContent=SESSION.name;
-  await Promise.all([loadWaiters(),loadStats()]);
+  await Promise.all([checkEnabled(),loadWaiters(),loadStats()]);
+}
+async function checkEnabled(){
+  try{
+    const d=await api('/api/settings');
+    const enabled=d.settings.quick_sale_enabled!==false;
+    document.getElementById('disabled-banner').style.display=enabled?'none':'block';
+    document.getElementById('entry-form').style.display=enabled?'block':'none';
+  }catch(e){/* if this fails, leave the form visible — backend will still enforce the rule */}
 }
 
 // ── Step 1: add free-text item lines ──────────────────────────
