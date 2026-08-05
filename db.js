@@ -120,6 +120,7 @@ function migrateDB(db) {
   if (typeof db.settings.lipa_namba === 'undefined') db.settings.lipa_namba = '';
   delete db.settings.vat_enabled;
   delete db.settings.vat_rate;
+  delete db.settings.quick_sale_enabled; // legacy toggle removed — access is Cashier-login-gated now
   db.attendance = db.attendance || [];
   db.chat = db.chat || [];
   db._seq = db._seq || {};
