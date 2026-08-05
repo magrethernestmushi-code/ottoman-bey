@@ -165,18 +165,6 @@ app.post('/api/orders/:id/plates-returned', handle(req => {
   return out;
 }));
 
-// ── messages ──────────────────────────────────────────────────────────
-app.get('/api/messages', handle(req => LOCAL.getMessages(req.session)));
-app.get('/api/messages/unread', handle(req => LOCAL.getUnread(req.session)));
-app.get('/api/staff-list', handle(req => LOCAL.getStaffList(req.session)));
-app.post('/api/messages', handle(req => {
-  const out = LOCAL.sendMsg(req.session, req.body);
-  emitEvent('message:new', out.message);
-  emitEvent('message:sent', out.message);
-  return out;
-}));
-app.post('/api/messages/read-all', handle(req => LOCAL.markAllRead(req.session)));
-
 // ── group chat ────────────────────────────────────────────────────────
 app.get('/api/chat', handle(req => LOCAL.getChatMessages(req.session)));
 app.post('/api/chat', handle(req => {

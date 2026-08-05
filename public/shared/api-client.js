@@ -74,11 +74,6 @@
     setStatus: function (id, status, payment_method) { return apiCall('PUT', '/api/orders/' + id + '/status', { status: status, payment_method: payment_method }); },
     platesTaken: function (id) { return apiCall('POST', '/api/orders/' + id + '/plates-taken'); },
     platesReturned: function (id) { return apiCall('POST', '/api/orders/' + id + '/plates-returned'); },
-    getMessages: function () { return apiCall('GET', '/api/messages'); },
-    getUnread: function () { return apiCall('GET', '/api/messages/unread'); },
-    getStaffList: function () { return apiCall('GET', '/api/staff-list'); },
-    sendMsg: function (body) { return apiCall('POST', '/api/messages', body); },
-    markAllRead: function () { return apiCall('POST', '/api/messages/read-all'); },
     getWaiterAvailability: function () { return apiCall('GET', '/api/waiter-availability'); },
     createOrderForWaiter: function (body) { return apiCall('POST', '/api/orders', body); },
     postStock: function (id, count) { return apiCall('POST', '/api/menu/' + id + '/stock', { count: count }); },
@@ -115,7 +110,7 @@
     // messages to not appear without a page refresh. Fixed here.
     var EVENTS = [
       'order:new', 'order:approved', 'order:status', 'order:plates',
-      'settings:updated', 'menu:updated', 'message:new', 'message:sent',
+      'settings:updated', 'menu:updated',
       'chat:message', 'chat:cleared', 'push:notify'
     ];
     EVENTS.forEach(function (ev) { socket.on(ev, function (payload) { BUS._dispatch(ev, payload); }); });

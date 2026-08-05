@@ -44,7 +44,6 @@ function seedDB() {
     categories: [],
     menu_items: [],
     orders: [],
-    messages: [],
     attendance: [],
     settings: { lipa_namba: '' },
     _seq: { categories: 0, menu_items: 0 }
@@ -115,7 +114,7 @@ function migrateDB(db) {
   db.categories = db.categories || [];
   db.menu_items = db.menu_items || [];
   db.orders = db.orders || [];
-  db.messages = db.messages || [];
+  delete db.messages; // old unused direct-messages feature, fully removed
   db.staff = db.staff || [];
   db.settings = db.settings || { lipa_namba: '' };
   if (typeof db.settings.lipa_namba === 'undefined') db.settings.lipa_namba = '';
@@ -789,50 +788,6 @@ LOCAL.getCashierStats = (sess) => {
     active_orders: myActive.map(enrichOrder),
     plate_alerts: myPlateAlerts.map(enrichOrder),
   };
-};
-
-LOCAL.getMessages = (sess) => {
-  requireSession(sess);
-  const msgs = loadDB().messages.filter(m =>
-    m.sender_id === sess.id || m.target_staff_id === sess.id || m.target_role === sess.role || m.target_role === 'ALL'
-  ).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 100);
-  return { messages: msgs };
-};
-LOCAL.getUnread = (sess) => {
-  requireSession(sess);
-  const cnt = loadDB().messages.filter(m =>
-    (m.target_staff_id === sess.id || m.target_role === sess.role || m.target_role === 'ALL') && m.sender_id !== sess.id && !m.is_read
-  ).length;
-  return { count: cnt };
-};
-LOCAL.getStaffList = (sess) => {
-  requireSession(sess);
-  const staff = loadDB().staff.filter(s => s.is_active && s.id !== sess.id)
-    .sort((a, b) => a.role.localeCompare(b.role) || a.full_name.localeCompare(b.full_name))
-    .map(s => ({ id: s.id, full_name: s.full_name, role: s.role }));
-  return { staff };
-};
-LOCAL.sendMsg = (sess, body) => {
-  requireSession(sess);
-  body = body || {};
-  if (!body.body || !body.body.trim()) throw new HttpError(400, 'Message body required');
-  if (!body.target_staff_id && !body.target_role) throw new HttpError(400, 'Provide a target');
-  if (body.target_role && body.target_role !== 'Admin' && sess.role !== 'Admin') throw new HttpError(403, 'Staff can only message Admin or individuals');
-  const db = loadDB();
-  const msg = { id: uuid(), sender_id: sess.id, sender_name: sess.name, sender_role: sess.role,
-    target_staff_id: body.target_staff_id || null, target_role: body.target_role || null,
-    subject: body.subject || null, body: body.body.trim(), is_read: 0, created_at: nowISO() };
-  db.messages.push(msg);
-  saveDB();
-  return { ok: true, message: msg };
-};
-LOCAL.markAllRead = (sess) => {
-  requireSession(sess);
-  loadDB().messages.forEach(m => {
-    if ((m.target_staff_id === sess.id || m.target_role === sess.role || m.target_role === 'ALL') && m.sender_id !== sess.id) m.is_read = 1;
-  });
-  saveDB();
-  return { ok: true };
 };
 
 // ── attendance (clock in / clock out) ───────────────────────────────
