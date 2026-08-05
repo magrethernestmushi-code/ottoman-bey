@@ -128,10 +128,31 @@
 
 <script>
 const API_BASE='';
+const DRAFT_KEY='sale_draft';
 let TOKEN=null, SESSION=null;
 let LINES=[]; // {name, qty, price}
 let WAITERS=[]; let SELECTED_WAITER=null;
 let PAY_METHOD='cash';
+
+// ── Draft persistence: keeps an in-progress order safe across page
+// refresh, tab switch, app close, or accidental navigation — until the
+// sale is actually completed (paid), at which point the draft is cleared.
+function saveDraft(){
+  try{
+    sessionStorage.setItem(DRAFT_KEY,JSON.stringify({LINES,SELECTED_WAITER,PAY_METHOD}));
+  }catch(_){}
+}
+function loadDraft(){
+  try{
+    const raw=sessionStorage.getItem(DRAFT_KEY);
+    if(!raw)return;
+    const d=JSON.parse(raw);
+    LINES=Array.isArray(d.LINES)?d.LINES:[];
+    SELECTED_WAITER=d.SELECTED_WAITER||null;
+    PAY_METHOD=d.PAY_METHOD||'cash';
+  }catch(_){}
+}
+function clearDraft(){try{sessionStorage.removeItem(DRAFT_KEY);}catch(_){}}
 
 function fmtTZS(n){return 'TZS '+Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0});}
 function fmtTime(d){return d?new Date(d).toLocaleTimeString('sw-TZ',{hour:'2-digit',minute:'2-digit'}):'—';}
@@ -165,6 +186,7 @@ async function login(){
 async function logout(){
   try{await api('/api/logout',{method:'POST'});}catch(_){}
   TOKEN=null;SESSION=null;sessionStorage.removeItem('sale_token');
+  clearDraft();LINES=[];SELECTED_WAITER=null;PAY_METHOD='cash';
   document.getElementById('main-view').style.display='none';
   document.getElementById('login-view').style.display='block';
   document.getElementById('l-pass').value='';
@@ -174,7 +196,14 @@ async function initApp(){
   document.getElementById('login-view').style.display='none';
   document.getElementById('main-view').style.display='block';
   document.getElementById('who').textContent=SESSION.name;
+  loadDraft();
+  renderLines();
+  document.querySelectorAll('.pm-btn').forEach(b=>b.classList.remove('active'));
+  const pmMap={cash:0,mpesa:1,tigopesa:2,airtelmoney:3,card:4,bank:5};
+  const pmBtns=document.querySelectorAll('.pm-btn');
+  if(pmBtns[pmMap[PAY_METHOD]])pmBtns[pmMap[PAY_METHOD]].classList.add('active');
   await Promise.all([loadWaiters(),loadStats()]);
+  if(LINES.length)showToast('↩️ Order iliyokuwa inaendelea imerejeshwa');
 }
 
 // ── Step 1: add free-text item lines ──────────────────────────
@@ -191,8 +220,9 @@ function addLine(){
   nameEl.value='';qtyEl.value=1;priceEl.value='';
   nameEl.focus();
   renderLines();
+  saveDraft();
 }
-function removeLine(i){LINES.splice(i,1);renderLines();}
+function removeLine(i){LINES.splice(i,1);renderLines();saveDraft();}
 function renderLines(){
   const card=document.getElementById('lines-card');
   const list=document.getElementById('lines-list');
@@ -232,10 +262,10 @@ function renderWaiters(){
     <button class="wt-btn ${SELECTED_WAITER===w.id?'active':''}" onclick="pickWaiter('${w.id}')">👤 ${w.full_name}</button>
   `).join(''):'<p class="empty">Hakuna mhudumu aliyesajiliwa</p>';
 }
-function pickWaiter(id){SELECTED_WAITER=id;renderWaiters();updateGates();}
+function pickWaiter(id){SELECTED_WAITER=id;renderWaiters();updateGates();saveDraft();}
 
 // ── Step 3: payment + submit ────────────────────────────────────
-function selPM(m,btn){PAY_METHOD=m;document.querySelectorAll('.pm-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
+function selPM(m,btn){PAY_METHOD=m;document.querySelectorAll('.pm-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');saveDraft();}
 
 async function completeSale(){
   if(!LINES.length||!SELECTED_WAITER)return;
@@ -245,6 +275,7 @@ async function completeSale(){
     const items=LINES.map(l=>({name:l.name,quantity:l.qty,price:l.price}));
     await api('/api/quick-sale',{method:'POST',body:JSON.stringify({items,waiter_id:SELECTED_WAITER,payment_method:PAY_METHOD})});
     LINES=[];SELECTED_WAITER=null;
+    clearDraft();
     renderLines();renderWaiters();
     showToast('✅ Mauzo Yamekamilika!');
     await loadStats();
