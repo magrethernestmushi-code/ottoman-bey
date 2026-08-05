@@ -1826,7 +1826,7 @@ async function loadReports(){
       <div class="card mt-12">
         <div class="card-hd"><span class="card-hd-title">📋 Order Log — every transaction (${(d.orders||[]).length})</span></div>
         <div class="table-wrap"><table class="data-table"><thead><tr>
-          <th>Order #</th><th>Table</th><th>Date</th><th>Time</th><th>Cashier</th><th>Payment</th><th>Amount</th>
+          <th>Order #</th><th>Table</th><th>Date</th><th>Time</th><th>Cashier</th><th>Vyakula</th><th>Payment</th><th>Amount</th>
         </tr></thead><tbody>
           ${(d.orders||[]).length?(d.orders||[]).map(o=>`<tr>
             <td class="fw7">${o.order_number}</td>
@@ -1834,15 +1834,16 @@ async function loadReports(){
             <td>${o.date}</td>
             <td>${fmtTime(o.paid_at)}</td>
             <td>${o.cashier_name||'—'}</td>
+            <td style="font-size:.8rem">${(o.items||[]).map(i=>`${i.icon} ${i.name} ×${i.quantity}`).join(', ')||'—'}</td>
             <td>${(o.payment_method||'—').toUpperCase()}</td>
             <td class="tg fw7">${fmtTZS(o.amount)}</td>
-          </tr>`).join(''):`<tr><td colspan="7" class="muted tc">No orders in this range</td></tr>`}
+          </tr>`).join(''):`<tr><td colspan="8" class="muted tc">No orders in this range</td></tr>`}
         </tbody></table></div>
       </div>
       <div class="card mt-12">
         <div class="card-hd"><span class="card-hd-title">❌ Cancelled Orders (${(d.cancelled||[]).length})</span></div>
         <div class="table-wrap"><table class="data-table"><thead><tr>
-          <th>Order #</th><th>Table</th><th>Date</th><th>Time</th><th>Cashier</th><th>Amount</th>
+          <th>Order #</th><th>Table</th><th>Date</th><th>Time</th><th>Cashier</th><th>Vyakula</th><th>Amount</th>
         </tr></thead><tbody>
           ${(d.cancelled||[]).length?(d.cancelled||[]).map(o=>`<tr>
             <td class="fw7">${o.order_number}</td>
@@ -1850,8 +1851,9 @@ async function loadReports(){
             <td>${o.date}</td>
             <td>${fmtTime(o.cancelled_at)}</td>
             <td>${o.cashier_name||'—'}</td>
+            <td style="font-size:.8rem">${(o.items||[]).map(i=>`${i.icon} ${i.name} ×${i.quantity}`).join(', ')||'—'}</td>
             <td class="tg fw7">${fmtTZS(o.amount)}</td>
-          </tr>`).join(''):`<tr><td colspan="6" class="muted tc">No cancelled orders in this range</td></tr>`}
+          </tr>`).join(''):`<tr><td colspan="7" class="muted tc">No cancelled orders in this range</td></tr>`}
         </tbody></table></div>
       </div>`;
   }catch(e){toast('Error',e.message,'error');}

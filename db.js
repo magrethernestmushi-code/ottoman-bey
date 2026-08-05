@@ -301,9 +301,13 @@ LOCAL.dashboard = (sess) => {
   const salesMap = {};
   db.orders.filter(o => dateOf(o.created_at) === today).forEach(o => {
     (o.items || []).forEach(it => {
-      const mi = findMenuItem(it.menu_item_id); if (!mi) return;
-      const key = mi.id;
-      if (!salesMap[key]) salesMap[key] = { name: mi.name, icon: mi.icon, qty: 0, revenue: 0 };
+      const mi = it.menu_item_id ? findMenuItem(it.menu_item_id) : null;
+      // Quick Sale items have no menu_item_id (free-text entry), so key on
+      // the item name instead of skipping them — otherwise Quick Sale
+      // never shows up in Best Selling even though it's real revenue.
+      const key = mi ? mi.id : 'qs:' + (it.item_name || '').trim().toLowerCase();
+      if (!key || key === 'qs:') return;
+      if (!salesMap[key]) salesMap[key] = { name: mi ? mi.name : (it.item_name || 'Kipengele'), icon: mi ? mi.icon : (it.icon || '🍽️'), qty: 0, revenue: 0 };
       salesMap[key].qty += it.quantity; salesMap[key].revenue += it.line_total;
     });
   });
@@ -459,7 +463,11 @@ LOCAL.getReports = (sess, from, to) => {
     payment_method: o.payment_method || null,
     amount: o.total_amount,
     cashier_id: o.cashier_id || null,
-    cashier_name: o.cashier_name || null
+    cashier_name: o.cashier_name || null,
+    items: (o.items || []).map(it => {
+      const mi = it.menu_item_id ? findMenuItem(it.menu_item_id) : null;
+      return { name: it.item_name || (mi && mi.name) || 'Kipengele', quantity: it.quantity, icon: it.icon || (mi && mi.icon) || '🍽️' };
+    })
   }));
   // Cancelled orders in range — kept as a separate log (not counted toward
   // revenue) so cleared/cancelled orders remain visible and searchable.
@@ -474,7 +482,11 @@ LOCAL.getReports = (sess, from, to) => {
     amount: o.total_amount,
     waiter_id: o.waiter_id || null,
     cashier_id: o.cashier_id || null,
-    cashier_name: o.cashier_name || null
+    cashier_name: o.cashier_name || null,
+    items: (o.items || []).map(it => {
+      const mi = it.menu_item_id ? findMenuItem(it.menu_item_id) : null;
+      return { name: it.item_name || (mi && mi.name) || 'Kipengele', quantity: it.quantity, icon: it.icon || (mi && mi.icon) || '🍽️' };
+    })
   }));
   return { summary, byMethod: Object.values(byMethodMap), daily, orders, cancelled };
 };
