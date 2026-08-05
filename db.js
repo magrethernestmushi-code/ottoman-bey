@@ -615,6 +615,7 @@ LOCAL.getOrders = (sess, query) => {
     list = list.filter(o =>
       o.status === 'pending_payment' ||           // any cashier can approve new orders
       o.cashier_id === sess.id ||                  // orders this cashier approved or paid
+      (!o.cashier_id && o.status !== 'paid' && o.status !== 'cancelled') || // safety net: orders from before the cashier_id fix, or any other edge case that left it unset — don't let them vanish, show to any cashier
       (o.plates_taken_at && !o.plates_returned && o.cashier_id === sess.id) // their plate alerts
     );
   } else if (query.waiter_id) {
@@ -689,7 +690,14 @@ LOCAL.createOrder = (sess, body) => {
     status: initialStatus, payment_method: null, subtotal, tax_amount: 0, total_amount: total,
     notes: notes || '', plates_taken_at: null, plates_returned: 0, plates_returned_at: null,
     plate_return_approved_by: null, created_at: now, updated_at: now,
-    prep_started_at: null, prep_ready_at: null, items: resolvedItems
+    prep_started_at: null, prep_ready_at: null, items: resolvedItems,
+    // BUG FIX: orders a Cashier creates directly (skipping pending_payment/
+    // approve) never got cashier_id set, so getOrders' Cashier-visibility
+    // filter (status==='pending_payment' || cashier_id===sess.id) silently
+    // dropped them the moment status moved past 'confirmed' — the order
+    // would vanish from that cashier's screen forever, even after refresh.
+    cashier_id: sess.role === 'Cashier' ? sess.id : null,
+    cashier_name: sess.role === 'Cashier' ? sess.name : null
   });
   saveDB();
 
