@@ -1986,7 +1986,6 @@ async function renderAdminSettings(){
     const d=await API.getSettings();
     SETTINGS_CACHE=d.settings;
     const lipaNamba=d.settings.lipa_namba||'';
-    const qsEnabled=d.settings.quick_sale_enabled!==false;
     let statusHtml='';
     try{
       const st=await API.getSystemStatus();
@@ -2009,21 +2008,6 @@ async function renderAdminSettings(){
     el.innerHTML=`
       <div class="page-hd"><div class="page-title">${t('settings.title')}</div></div>
       ${statusHtml}
-      <div class="card mb-12">
-        <div class="card-hd"><span class="card-hd-title">💰 Mfumo wa Mauzo (Cashier Quick Sale)</span></div>
-        <div class="card-bd">
-          <div class="flex-b" style="align-items:center">
-            <div>
-              <div class="fw7">Ukurasa wa /sale (Cashier)</div>
-              <div class="muted" style="font-size:.8rem;margin-top:2px">Ukiuzima, Cashier hataweza kuandika mauzo mapya kwenye ukurasa huo.</div>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="qs-toggle" ${qsEnabled?'checked':''} onchange="toggleQuickSale(this.checked)">
-              <span class="switch-slider"></span>
-            </label>
-          </div>
-        </div>
-      </div>
       <div class="card mb-12">
         <div class="card-hd"><span class="card-hd-title">💳 ${t('admin.lipaNamba')}</span></div>
         <div class="card-bd">
@@ -2066,6 +2050,15 @@ async function renderAdminSettings(){
           </div>
           <button class="btn" style="width:100%;background:#E67E22;color:#fff" onclick="doClearActive()">🧹 Safisha Oda Zinazoendelea</button>
         </div>
+        <div class="card" style="margin-top:12px">
+          <h3>Futa Taarifa za Zamani za Quick Sale</h3>
+          <div style="color:#666;font-size:13px;margin:8px 0">
+            Kipengele cha "Mauzo (Cashier Quick Sale)" kimeondolewa kwenye app — kitufe, ukurasa, na API
+            vyote vimefutwa. Bonyeza hapa chini kufuta pia <b>rekodi za mauzo</b> zilizotengenezwa
+            kupitia kipengele hicho awali. Oda za kawaida za mfumo (menu-based) <b>haziguswi</b>.
+          </div>
+          <button class="btn" style="width:100%;background:#C0392B;color:#fff" onclick="doDeleteQuickSale()">🗑️ Futa Mauzo ya Zamani ya Quick Sale</button>
+        </div>
       </div>`;
   }catch(e){
     el.innerHTML+=`<div class="empty-state"><span class="es-i">⚠️</span><p>${e.message}</p></div>`;
@@ -2080,6 +2073,14 @@ async function doClearActive(){
     renderAdminSettings();
   }catch(e){toast('Error',e.message,'error');}
 }
+async function doDeleteQuickSale(){
+  const ok=confirm('Una uhakika unataka kufuta rekodi zote za zamani za Quick Sale? Hatua hii haiwezi kurudishwa nyuma.');
+  if(!ok)return;
+  try{
+    const d=await API.deleteQuickSaleOrders();
+    toast('✅ Imekamilika',`Rekodi ${d.removed} za Quick Sale zimefutwa.`,'success');
+  }catch(e){toast('Error',e.message,'error');}
+}
 async function doResetData(){
   const step1=confirm('Una uhakika? Hii itafuta OD A ZOTE na MAHUDHURIO YOTE ya zamani — hatua hii HAIWEZI kurudishwa.');
   if(!step1)return;
@@ -2090,16 +2091,6 @@ async function doResetData(){
     toast('✅ Imekamilika',`Oda ${d.orders_cleared} na mahudhurio ${d.attendance_cleared} zimefutwa. Mfumo umeanza upya.`,'success');
     renderAdminSettings();
   }catch(e){toast('Error',e.message,'error');}
-}
-async function toggleQuickSale(enabled){
-  const box=document.getElementById('qs-toggle');
-  try{
-    await API.updateSettings({quick_sale_enabled:enabled});
-    toast(enabled?'✅ Imewashwa':'🔒 Imezimwa', enabled?'Cashier anaweza kutumia ukurasa wa Mauzo tena.':'Cashier hataweza kuandika mauzo mapya.', 'success');
-  }catch(e){
-    if(box)box.checked=!enabled; // revert UI on failure
-    toast('Error',e.message,'error');
-  }
 }
 async function doExportBackup(){
   try{

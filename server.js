@@ -108,6 +108,7 @@ app.get('/api/reports', handle(req => LOCAL.getReports(req.session, req.query.fr
 app.post('/api/admin/reset-data', handle(req => LOCAL.resetOperationalData(req.session)));
 app.post('/api/admin/clear-active', handle(req => LOCAL.clearActiveOrders(req.session)));
 app.get('/api/admin/system-status', handle(req => LOCAL.getSystemStatus(req.session)));
+app.post('/api/admin/delete-quick-sale', handle(req => LOCAL.deleteQuickSaleOrders(req.session)));
 
 // ── menu ──────────────────────────────────────────────────────────────
 app.get('/api/menu', handle(req => LOCAL.getMenu(req.session)));
@@ -140,12 +141,6 @@ app.post('/api/orders', handle(req => {
   const out = LOCAL.createOrder(req.session, req.body);
   emitEvent(out._event, { order: out.order });
   delete out._event;
-  return out;
-}));
-app.post('/api/quick-sale', handle(req => {
-  const out = LOCAL.quickSale(req.session, req.body);
-  emitEvent('order:approved', { order: out.order });
-  emitEvent('order:status', { order_id: out.order.id, status: 'paid', order: out.order });
   return out;
 }));
 app.post('/api/orders/:id/approve', handle(req => {
@@ -210,7 +205,6 @@ app.post('/api/backup', handle(req => LOCAL.importBackup(req.session, req.body))
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/staff', (req, res) => res.sendFile(path.join(__dirname, 'public/staff/index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public/admin/index.html')));
-app.get('/sale', (req, res) => res.sendFile(path.join(__dirname, 'public/sale/index.html')));
 
 io.on('connection', () => {});
 

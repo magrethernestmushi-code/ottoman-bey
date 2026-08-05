@@ -94,7 +94,8 @@
     getMyCashierStats: function () { return apiCall('GET', '/api/cashier/my-stats'); },
     resetOperationalData: function () { return apiCall('POST', '/api/admin/reset-data'); },
     clearActiveOrders: function () { return apiCall('POST', '/api/admin/clear-active'); },
-    getSystemStatus: function () { return apiCall('GET', '/api/admin/system-status'); }
+    getSystemStatus: function () { return apiCall('GET', '/api/admin/system-status'); },
+    deleteQuickSaleOrders: function () { return apiCall('POST', '/api/admin/delete-quick-sale'); }
   };
 
   // ── realtime bus, backed by a single persistent Socket.io connection ──
