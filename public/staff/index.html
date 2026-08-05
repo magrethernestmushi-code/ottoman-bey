@@ -1846,8 +1846,6 @@ async function renderAttendance(){
 async function doClockIn(){try{await API.clockIn();toast('✅','Umeingia kazini','success');renderAttendance();}catch(e){toast('Error',e.message,'error');}}
 async function doClockOut(){try{await API.clockOut();toast('🚪','Umetoka kazini','success');renderAttendance();}catch(e){toast('Error',e.message,'error');}}
 
-async function doClockIn(){try{await API.clockIn();toast('✅','Umeingia kazini','success');renderAttendance();}catch(e){toast('Error',e.message,'error');}}
-async function doClockOut(){try{await API.clockOut();toast('🚪','Umetoka kazini','success');renderAttendance();}catch(e){toast('Error',e.message,'error');}}
 
 // ══════════════════════════════════════════════════════════════
 // GROUP CHAT — live for all staff, with push notifications + translation

@@ -2049,15 +2049,6 @@ async function renderAdminSettings(){
           </div>
           <button class="btn" style="width:100%;background:#E67E22;color:#fff" onclick="doClearActive()">🧹 Safisha Oda Zinazoendelea</button>
         </div>
-        <div class="card" style="margin-top:12px">
-          <h3>Futa Taarifa za Zamani za Quick Sale</h3>
-          <div style="color:#666;font-size:13px;margin:8px 0">
-            Kipengele cha "Mauzo (Cashier Quick Sale)" kimeondolewa kwenye app — kitufe, ukurasa, na API
-            vyote vimefutwa. Bonyeza hapa chini kufuta pia <b>rekodi za mauzo</b> zilizotengenezwa
-            kupitia kipengele hicho awali. Oda za kawaida za mfumo (menu-based) <b>haziguswi</b>.
-          </div>
-          <button class="btn" style="width:100%;background:#C0392B;color:#fff" onclick="doDeleteQuickSale()">🗑️ Futa Mauzo ya Zamani ya Quick Sale</button>
-        </div>
       </div>`;
   }catch(e){
     el.innerHTML+=`<div class="empty-state"><span class="es-i">⚠️</span><p>${e.message}</p></div>`;
@@ -2070,14 +2061,6 @@ async function doClearActive(){
     const d=await API.clearActiveOrders();
     toast('✅ Imekamilika',`Oda ${d.orders_cleared} zimefutwa na plate alerts ${d.plates_cleared} zimesafishwa.`,'success');
     renderAdminSettings();
-  }catch(e){toast('Error',e.message,'error');}
-}
-async function doDeleteQuickSale(){
-  const ok=confirm('Una uhakika unataka kufuta rekodi zote za zamani za Quick Sale? Hatua hii haiwezi kurudishwa nyuma.');
-  if(!ok)return;
-  try{
-    const d=await API.deleteQuickSaleOrders();
-    toast('✅ Imekamilika',`Rekodi ${d.removed} za Quick Sale zimefutwa.`,'success');
   }catch(e){toast('Error',e.message,'error');}
 }
 async function doResetData(){

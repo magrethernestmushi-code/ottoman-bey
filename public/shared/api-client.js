@@ -20,6 +20,19 @@
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
         if (!res.ok) {
+          if (res.status === 401 && tok) {
+            // Session no longer valid server-side (rare now that sessions
+            // persist across restarts, but can still happen — e.g. after
+            // an Admin data reset/import). Clear the stale token and reload
+            // to the login screen with a clear message, instead of leaving
+            // the user staring at cryptic errors on every action.
+            clearSession();
+            if (!global.__sessionExpiredNotified) {
+              global.__sessionExpiredNotified = true;
+              try { alert('Muda wa kuingia umeisha. Tafadhali ingia tena.'); } catch (e) {}
+              try { location.reload(); } catch (e) {}
+            }
+          }
           var err = new Error(data.error || ('Request failed (' + res.status + ')'));
           err.status = res.status;
           throw err;

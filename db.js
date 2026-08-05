@@ -123,6 +123,7 @@ function migrateDB(db) {
   delete db.settings.quick_sale_enabled; // legacy toggle removed — access is Cashier-login-gated now
   db.attendance = db.attendance || [];
   db.chat = db.chat || [];
+  db.sessions = db.sessions || {}; // token -> session, persisted so a server restart doesn't log everyone out mid-shift
   db._seq = db._seq || {};
   if (typeof db._seq.categories === 'undefined') db._seq.categories = db.categories.reduce((m, c) => Math.max(m, c.id || 0), 0);
   if (typeof db._seq.menu_items === 'undefined') db._seq.menu_items = db.menu_items.reduce((m, i) => Math.max(m, i.id || 0), 0);
@@ -234,16 +235,46 @@ function saveDB() {
   persistToMongo();
 }
 
-// ── sessions (in-memory token -> session) ──────────────────────────
+// ── sessions ─────────────────────────────────────────────────────────
+// Kept in an in-memory Map for fast lookup on every request, AND mirrored
+// into the durable _DB (Mongo/local file) so that a server restart —
+// which happens often on Render's free tier (idle spin-down, redeploys) —
+// does NOT silently log every staff member out mid-shift. On boot, the
+// Map is rehydrated from the last saved sessions.
 const sessions = new Map();
+const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 function createSession(user) {
   const token = crypto.randomBytes(24).toString('hex');
   const sess = { id: user.id, name: user.full_name, username: user.username, role: user.role };
   sessions.set(token, sess);
+  const db = loadDB();
+  db.sessions = db.sessions || {};
+  db.sessions[token] = Object.assign({ created_at: nowISO() }, sess);
+  // Opportunistic cleanup: drop sessions older than 30 days so this doesn't
+  // grow forever with daily logins on shared devices.
+  const cutoff = Date.now() - SESSION_MAX_AGE_MS;
+  Object.keys(db.sessions).forEach(t => {
+    const s = db.sessions[t];
+    if (s && s.created_at && Date.parse(s.created_at) < cutoff) delete db.sessions[t];
+  });
+  saveDB();
   return { token, session: sess };
 }
-function getSessionByToken(token) { return token ? sessions.get(token) : null; }
-function destroySession(token) { sessions.delete(token); }
+function getSessionByToken(token) {
+  if (!token) return null;
+  if (sessions.has(token)) return sessions.get(token);
+  // Not in memory (e.g. right after a restart) — check the durable copy
+  // and rehydrate the in-memory Map so subsequent lookups are fast.
+  const db = loadDB();
+  const sess = db.sessions && db.sessions[token];
+  if (sess) { sessions.set(token, sess); return sess; }
+  return null;
+}
+function destroySession(token) {
+  sessions.delete(token);
+  const db = loadDB();
+  if (db.sessions && db.sessions[token]) { delete db.sessions[token]; saveDB(); }
+}
 
 function requireSession(sess) {
   if (!sess) throw new HttpError(401, 'Unauthorized');
@@ -773,12 +804,13 @@ LOCAL.quickSale = (sess, body) => {
 // old quick-sale endpoint (regular orders always reference a real menu item).
 LOCAL.deleteQuickSaleOrders = (sess) => {
   requireRole(sess, 'Admin');
-  const db = loadDB();
-  const before = db.orders.length;
-  db.orders = db.orders.filter(o => !(o.items && o.items.length && o.items.every(it => it.menu_item_id === null)));
-  const removed = before - db.orders.length;
-  saveDB();
-  return { ok: true, removed };
+  // RETIRED: Quick Sale is a permanent, live feature again (not a removed
+  // one), so every Quick Sale order — old or from five minutes ago — has
+  // the same signature (menu_item_id === null on every line). This action
+  // can no longer tell "old junk" apart from today's real paid sales, so
+  // it's disabled to prevent accidentally deleting legitimate revenue
+  // history. Use the date-range Reports / export Backup instead.
+  throw new HttpError(410, 'Kipengele hiki kimezimwa: haiwezekani tena kutofautisha mauzo ya zamani na ya sasa ya Quick Sale bila hatari ya kufuta taarifa halisi.');
 };
 
 LOCAL.approveOrder = (sess, id) => {

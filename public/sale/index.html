@@ -164,7 +164,19 @@ async function api(path,opts){
   if(TOKEN)opts.headers['Authorization']='Bearer '+TOKEN;
   const res=await fetch(API_BASE+path,opts);
   const data=await res.json().catch(()=>({}));
-  if(!res.ok)throw new Error(data.error||'Hitilafu');
+  if(!res.ok){
+    if(res.status===401 && TOKEN){
+      // Session no longer valid server-side — clear it and drop back to the
+      // login screen with a clear message instead of failing silently on
+      // every subsequent tap (the in-progress order draft is kept, since
+      // sessionStorage isn't touched here, so nothing already added is lost).
+      TOKEN=null;SESSION=null;sessionStorage.removeItem('sale_token');
+      document.getElementById('main-view').style.display='none';
+      document.getElementById('login-view').style.display='block';
+      document.getElementById('l-err').textContent='Muda wa kuingia umeisha. Tafadhali ingia tena.';
+    }
+    throw new Error(data.error||'Hitilafu');
+  }
   return data;
 }
 
