@@ -935,10 +935,8 @@ function toast(title,msg,type='info'){
 }
 
 // ── API ────────────────────────────────────────────────────────
-// Offline edition: no fetch(), no server. Every call below goes straight
-// to POS_DB (js/pos-db.js), which reads/writes the local browser database.
-// Method names and call signatures are identical to the original networked
-// API, so the rest of this file's logic is unchanged.
+// POS_DB (shared/api-client.js) makes real fetch() calls to the server API
+// and keeps a persistent Socket.IO connection for live updates.
 const API=window.POS_DB;
 
 // ── AUTH ───────────────────────────────────────────────────────
@@ -1084,11 +1082,9 @@ function applyStaticI18n(){
 
 // ── SOCKET.IO ──────────────────────────────────────────────────
 function initSocket(){
-  // Offline edition: no real socket connection. POS_BUS delivers the same
-  // named events (order:new, order:approved, message:new, etc.) instantly
-  // within this tab, and to any other Staff/Admin tab open on this device
-  // via the browser's "storage" event — so both apps stay live-synced
-  // with zero network and zero server.
+  // Live sync: POS_BUS is backed by a real, persistent Socket.IO connection
+  // (see shared/api-client.js connectSocket()), so every connected device —
+  // not just other tabs on this one — gets order/menu/chat updates instantly.
   SOCKET={on:(t,cb)=>POS_BUS.on(t,cb),disconnect:()=>POS_BUS.offAll()};
   document.getElementById('ws-dot').classList.add('live');
 

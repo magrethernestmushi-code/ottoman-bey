@@ -115,7 +115,7 @@
     // messages to not appear without a page refresh. Fixed here.
     var EVENTS = [
       'order:new', 'order:approved', 'order:status', 'order:plates',
-      'settings:updated', 'menu:updated',
+      'settings:updated', 'menu:updated', 'message:new', 'message:sent',
       'chat:message', 'chat:cleared', 'push:notify'
     ];
     EVENTS.forEach(function (ev) { socket.on(ev, function (payload) { BUS._dispatch(ev, payload); }); });

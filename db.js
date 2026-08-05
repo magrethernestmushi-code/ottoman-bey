@@ -199,11 +199,23 @@ function loadDB() {
   return _DB;
 }
 
+let _mongoRetryTimer = null;
+let _lastMongoError = null;
 function persistToMongo() {
   if (!_mongoCollection) return Promise.resolve();
   const doc = Object.assign({ _id: MONGO_DOC_ID }, _DB);
   return _mongoCollection.replaceOne({ _id: MONGO_DOC_ID }, doc, { upsert: true })
-    .catch(e => console.error('db: MongoDB save failed (will retry on next change):', e.message));
+    .then(() => { _lastMongoError = null; })
+    .catch(e => {
+      // Don't just log and drop it — a failed write here (network blip,
+      // Atlas hiccup) means the latest changes only exist in memory. Keep
+      // retrying every 5s until it succeeds, so a Render restart in that
+      // window is the only way to actually lose data.
+      _lastMongoError = e.message;
+      console.error('db: MongoDB save failed, retrying in 5s:', e.message);
+      if (_mongoRetryTimer) clearTimeout(_mongoRetryTimer);
+      _mongoRetryTimer = setTimeout(() => persistToMongo(), 5000);
+    });
 }
 
 function saveDB() {
@@ -908,6 +920,7 @@ LOCAL.clearChat = (sess) => {
 };
 
 function isMongoConnected() { return !!_mongoCollection; }
+function getLastMongoError() { return _lastMongoError; }
 
 // ── system status (Admin diagnostic: is MongoDB actually connected,
 // or are we silently running on the ephemeral local file that resets
@@ -918,6 +931,7 @@ LOCAL.getSystemStatus = (sess) => {
   return {
     mongo_connected: isMongoConnected(),
     storage_mode: isMongoConnected() ? 'mongodb' : 'local_file',
+    last_save_error: getLastMongoError(),
     orders_count: db.orders.length,
     staff_count: db.staff.length,
     menu_items_count: db.menu_items.length
