@@ -704,6 +704,54 @@ LOCAL.createOrder = (sess, body) => {
   const full = enrichOrder(findOrder(orderId));
   return { ok: true, order: full, _event: initialStatus === 'confirmed' ? 'order:approved' : 'order:new' };
 };
+// ── quick sale (standalone simple cashier till) ─────────────────────
+// One-step sale, fully independent from the kitchen/menu/stock/table
+// system. Cashier just types what was sold + price and taps which
+// waiter served it. No stock is touched, no menu item is required —
+// this is a free-form sales log, not a kitchen order. Cashier-only.
+LOCAL.quickSale = (sess, body) => {
+  requireRole(sess, 'Cashier');
+  body = body || {};
+  const { items, waiter_id, payment_method } = body;
+  if (!items || !items.length) throw new HttpError(400, 'Ongeza angalau chakula kimoja');
+  if (!waiter_id) throw new HttpError(400, 'Chagua mhudumu (waiter)');
+  const waiter = findStaff(waiter_id);
+  if (!waiter || waiter.role !== 'Waiter' || !waiter.is_active) throw new HttpError(400, 'Mhudumu si sahihi');
+  const validMethods = ['cash', 'card', 'mpesa', 'tigopesa', 'airtelmoney', 'bank'];
+  if (!validMethods.includes(payment_method)) throw new HttpError(400, 'Chagua njia ya malipo');
+
+  const db = loadDB();
+  let subtotal = 0;
+  const resolvedItems = items.map(item => {
+    const name = String(item.name || '').trim();
+    const qty = Number(item.quantity);
+    const price = Number(item.price);
+    if (!name) throw new HttpError(400, 'Andika jina la chakula');
+    if (!qty || qty <= 0) throw new HttpError(400, 'Idadi si sahihi kwa ' + name);
+    if (isNaN(price) || price < 0) throw new HttpError(400, 'Bei si sahihi kwa ' + name);
+    const lineTotal = round2(price * qty);
+    subtotal += lineTotal;
+    return { menu_item_id: null, quantity: qty, unit_price: price, line_total: lineTotal, item_name: name, icon: '🍽️' };
+  });
+
+  const orderId = uuid();
+  const orderNum = 'ORD-' + Date.now().toString().slice(-6);
+  const total = round2(subtotal);
+  const now = nowISO();
+
+  db.orders.push({
+    id: orderId, order_number: orderNum, waiter_id, table_number: null,
+    status: 'paid', payment_method, subtotal, tax_amount: 0, total_amount: total,
+    notes: '', plates_taken_at: null, plates_returned: 0, plates_returned_at: null,
+    plate_return_approved_by: null, created_at: now, updated_at: now,
+    prep_started_at: null, prep_ready_at: null, items: resolvedItems,
+    cashier_id: sess.id, cashier_name: sess.name, paid_by: sess.id
+  });
+  saveDB();
+
+  const full = enrichOrder(findOrder(orderId));
+  return { ok: true, order: full };
+};
 // ── delete historical Quick Sale orders (Admin one-time cleanup) ────
 // The standalone "Mauzo (Cashier Quick Sale)" feature has been removed
 // from the app entirely (button, page, and API). This lets Admin purge
