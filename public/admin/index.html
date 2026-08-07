@@ -400,6 +400,7 @@
             <input class="input" type="date" id="rpt-from" style="width:140px">
             <input class="input" type="date" id="rpt-to"   style="width:140px">
             <button class="btn btn-gold btn-sm" data-i18n="admin.run" onclick="loadReports()">🔍 Run</button>
+            <button class="btn btn-sm" style="background:#1e7e34;color:#fff" onclick="doExportReportCSV()">⬇️ Pakua CSV</button>
           </div>
         </div>
         <div id="reports-view"></div>
@@ -1802,11 +1803,62 @@ async function renderReports(){
   if(!document.getElementById('rpt-to').value)document.getElementById('rpt-to').value=today;
   await loadReports();
 }
+function csvCell(v){
+  const s=(v===null||v===undefined)?'':String(v);
+  return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function csvRow(arr){return arr.map(csvCell).join(',');}
+function doExportReportCSV(){
+  const d=LAST_REPORT_DATA, range=LAST_REPORT_RANGE;
+  if(!d){toast('Error','Bonyeza 🔍 Run kwanza kabla ya kupakua','error');return;}
+  const {summary,byMethod,daily}=d;
+  const lines=[];
+  lines.push(csvRow(['Ripoti ya Ottoman Bey Restaurant']));
+  lines.push(csvRow(['Kipindi',`${range.from} hadi ${range.to}`]));
+  lines.push('');
+  lines.push(csvRow(['MUHTASARI']));
+  lines.push(csvRow(['Jumla ya Oda',summary.total_orders]));
+  lines.push(csvRow(['Mapato (Revenue)',summary.revenue]));
+  lines.push(csvRow(['Subtotal',summary.subtotal]));
+  lines.push('');
+  lines.push(csvRow(['NJIA ZA MALIPO']));
+  lines.push(csvRow(['Njia','Idadi ya Oda','Jumla']));
+  (byMethod||[]).forEach(m=>lines.push(csvRow([(m.payment_method||'—').toUpperCase(),m.cnt,m.total])));
+  lines.push('');
+  lines.push(csvRow(['MCHANGANUO WA KILA SIKU']));
+  lines.push(csvRow(['Tarehe','Idadi ya Oda','Mapato']));
+  (daily||[]).forEach(r=>lines.push(csvRow([r.day,r.orders,r.revenue])));
+  lines.push('');
+  lines.push(csvRow([`ODA ZOTE ZILIZOLIPWA (${(d.orders||[]).length})`]));
+  lines.push(csvRow(['Order #','Meza','Tarehe','Muda','Cashier','Vyakula','Njia ya Malipo','Kiasi']));
+  (d.orders||[]).forEach(o=>lines.push(csvRow([
+    o.order_number,o.table_number||'—',o.date,fmtTime(o.paid_at),o.cashier_name||'—',
+    (o.items||[]).map(i=>`${i.name} x${i.quantity}`).join('; '),
+    (o.payment_method||'—').toUpperCase(),o.amount
+  ])));
+  lines.push('');
+  lines.push(csvRow([`ODA ZILIZOGHAIRIWA (${(d.cancelled||[]).length})`]));
+  lines.push(csvRow(['Order #','Meza','Tarehe','Muda','Cashier','Vyakula','Kiasi']));
+  (d.cancelled||[]).forEach(o=>lines.push(csvRow([
+    o.order_number,o.table_number||'—',o.date,fmtTime(o.cancelled_at),o.cashier_name||'—',
+    (o.items||[]).map(i=>`${i.name} x${i.quantity}`).join('; '),o.amount
+  ])));
+  const csv='\uFEFF'+lines.join('\r\n'); // BOM so Excel opens Swahili chars correctly
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`ripoti-ottoman-bey-${range.from}_hadi_${range.to}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('✅','Ripoti imepakuliwa','success');
+}
+let LAST_REPORT_DATA=null, LAST_REPORT_RANGE=null;
 async function loadReports(){
   const from=document.getElementById('rpt-from').value;
   const to=document.getElementById('rpt-to').value;
   try{
     const d=await API.getReports(from,to);
+    LAST_REPORT_DATA=d; LAST_REPORT_RANGE={from,to};
     const{summary,byMethod,daily}=d;
     document.getElementById('reports-view').innerHTML=`
       <div class="kpi-row mb-12">
