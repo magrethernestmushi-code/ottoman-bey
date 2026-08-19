@@ -886,7 +886,7 @@ LOCAL.quickSale = (sess, body) => {
         source: 'quick_sale_reconciliation',
         prepared_qty: prepared, quick_sold_qty: quickSold, discrepancy: quickSold - prepared,
         flagged: true, order_id: orderId,
-        note: 'Jumla ya Quick Sale imezidi kiasi Mpishi alichoandika kimeandaliwa leo',
+        note: "Quick Sale total exceeded Chef's prepared quantity today",
         recorded_by: sess.id, recorded_by_name: sess.name, recorded_by_role: sess.role,
         created_at: nowISO()
       };
