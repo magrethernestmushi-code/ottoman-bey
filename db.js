@@ -21,6 +21,7 @@ function minutesBetween(a, b) {
 }
 function round2(n) { return parseFloat((Number(n) || 0).toFixed(2)); }
 function uuid() { return crypto.randomUUID(); }
+function normName(s) { return String(s || '').trim().toLowerCase(); }
 
 function genSalt() { return crypto.randomBytes(16).toString('hex'); }
 function hashPassword(password, salt) {
@@ -45,6 +46,9 @@ function seedDB() {
     menu_items: [],
     orders: [],
     attendance: [],
+    expenses: [],
+    stock_log: [],
+    stock_audits: [],
     settings: { lipa_namba: '' },
     _seq: { categories: 0, menu_items: 0 }
   };
@@ -102,7 +106,7 @@ function seedDB() {
     const id = nextId('menu_items');
     db.menu_items.push({
       id, category_id: catId[row[0]], name: row[1], icon: row[2],
-      price: row[3], is_available: 0, stock_count: 0, stock_date: null, description: ''
+      price: row[3], cost_price: row[4] || 0, is_available: 0, stock_count: 0, stock_date: null, description: ''
     });
   });
 
@@ -124,16 +128,19 @@ function migrateDB(db) {
   db.attendance = db.attendance || [];
   db.chat = db.chat || [];
   db.sessions = db.sessions || {}; // token -> session, persisted so a server restart doesn't log everyone out mid-shift
+  db.expenses = db.expenses || [];
+  db.stock_log = db.stock_log || [];
+  db.stock_audits = db.stock_audits || [];
   db._seq = db._seq || {};
   if (typeof db._seq.categories === 'undefined') db._seq.categories = db.categories.reduce((m, c) => Math.max(m, c.id || 0), 0);
   if (typeof db._seq.menu_items === 'undefined') db._seq.menu_items = db.menu_items.reduce((m, i) => Math.max(m, i.id || 0), 0);
   db.menu_items.forEach(mi => {
     if (typeof mi.stock_count === 'undefined') mi.stock_count = 0;
     if (typeof mi.stock_date === 'undefined') mi.stock_date = null;
-    delete mi.cost_price;
+    if (typeof mi.cost_price === 'undefined') mi.cost_price = 0;
     delete mi.low_stock;
   });
-  db.version = 3;
+  db.version = 4;
   return db;
 }
 
@@ -291,23 +298,47 @@ function findStaff(id) { return loadDB().staff.find(s => s.id === id); }
 function findMenuItem(id) { return loadDB().menu_items.find(m => m.id === Number(id)); }
 function findOrder(id) { return loadDB().orders.find(o => o.id === id); }
 
-function enrichOrder(o) {
+function enrichOrder(o, sess) {
   if (!o) return null;
   const waiter = findStaff(o.waiter_id) || {};
+  // Cost/profit margins are sensitive — only Admin and Cashier ever see them.
+  // Waiter and Kitchen get the same order data they always did, unchanged.
+  const canSeeCost = !!sess && (sess.role === 'Admin' || sess.role === 'Cashier');
   const items = (o.items || []).map(it => {
     const mi = it.menu_item_id ? findMenuItem(it.menu_item_id) : null;
-    return { id: it.id, order_id: o.id, menu_item_id: it.menu_item_id || null, quantity: it.quantity,
+    const line = { id: it.id, order_id: o.id, menu_item_id: it.menu_item_id || null, quantity: it.quantity,
       unit_price: it.unit_price, line_total: it.line_total,
       item_name: it.item_name || (mi && mi.name) || 'Kipengele',
       icon: it.icon || (mi && mi.icon) || '🍽️' };
+    if (canSeeCost) { line.unit_cost = it.unit_cost || 0; line.line_cost = it.line_cost || 0; }
+    return line;
   });
   const out = Object.assign({}, o);
   out.waiter_name = waiter.full_name;
   out.items = items;
+  if (!canSeeCost) { delete out.cost_amount; delete out.profit_amount; }
   return out;
 }
 
 // ── business logic (ported 1:1 from the offline edition) ───────────
+// ── Chef-prepared vs Quick-Sale-sold reconciliation helpers ─────────
+// "Prepared" quantity for a given day = sum of the deltas Kitchen logged
+// via postStock that day (new_count - previous_count each time they post).
+function preparedQtyForDate(db, menuItemId, date) {
+  return db.stock_log
+    .filter(l => l.type === 'prepared' && l.menu_item_id === menuItemId && dateOf(l.created_at) === date)
+    .reduce((sum, l) => sum + (l.new_count - l.previous_count), 0);
+}
+// Quick Sale has no menu_item_id link (it's free-text), so we match by
+// name (case/whitespace-insensitive) against paid Quick Sale line items.
+function quickSoldQtyForName(db, nameLower, date) {
+  return db.orders
+    .filter(o => o.status === 'paid' && dateOf(o.created_at) === date)
+    .reduce((sum, o) => sum + (o.items || [])
+      .filter(it => it.menu_item_id === null && normName(it.item_name) === nameLower)
+      .reduce((s, it) => s + it.quantity, 0), 0);
+}
+
 const LOCAL = {};
 
 LOCAL.login = (username, password) => {
@@ -345,7 +376,7 @@ LOCAL.dashboard = (sess) => {
   const bestSelling = Object.values(salesMap).sort((a, b) => b.qty - a.qty).slice(0, 8);
 
   const recentOrders = db.orders.slice().sort((a, b) => b.created_at.localeCompare(a.created_at))
-    .slice(0, 10).map(o => { const e = enrichOrder(o); delete e.items; return e; });
+    .slice(0, 10).map(o => { const e = enrichOrder(o, sess); delete e.items; return e; });
 
   const plateAlerts = db.orders.filter(o => o.plates_taken_at && !o.plates_returned)
     .sort((a, b) => a.plates_taken_at.localeCompare(b.plates_taken_at))
@@ -466,10 +497,22 @@ LOCAL.getReports = (sess, from, to) => {
   // Each cashier sees only the orders THEY personally processed (their own till).
   // Admin sees every order from every cashier, so nothing is hidden from management.
   if (sess.role === 'Cashier') inRange = inRange.filter(o => o.cashier_id === sess.id);
+  const costTotal = round2(inRange.reduce((a, o) => a + (o.cost_amount || 0), 0));
+  const revenueTotal = round2(inRange.reduce((a, o) => a + o.total_amount, 0));
+  const expensesInRange = (sess.role === 'Cashier'
+    ? db.expenses.filter(e => e.recorded_by === sess.id)
+    : db.expenses.slice()
+  ).filter(e => e.date >= f && e.date <= t);
+  const expensesTotal = round2(expensesInRange.reduce((a, e) => a + e.amount, 0));
   const summary = { total_orders: inRange.length,
-    revenue: inRange.reduce((a, o) => a + o.total_amount, 0),
+    revenue: revenueTotal,
     subtotal: inRange.reduce((a, o) => a + o.subtotal, 0),
-    tax: inRange.reduce((a, o) => a + o.tax_amount, 0) };
+    tax: inRange.reduce((a, o) => a + o.tax_amount, 0),
+    cost_of_goods: costTotal,
+    gross_profit: round2(revenueTotal - costTotal),
+    expenses: expensesTotal,
+    net_profit: round2(revenueTotal - costTotal - expensesTotal),
+    net_balance: round2(revenueTotal - expensesTotal) };
   const byMethodMap = {};
   inRange.forEach(o => {
     const m = o.payment_method || null;
@@ -525,14 +568,17 @@ LOCAL.getReports = (sess, from, to) => {
 LOCAL.getMenu = (sess) => {
   requireSession(sess);
   const db = loadDB(), today = todayStr();
+  const canSeeCost = sess.role === 'Admin' || sess.role === 'Cashier';
   const items = db.menu_items.map(mi => {
     const c = db.categories.find(c => c.id === mi.category_id) || {};
     const postedToday = mi.stock_date === today;
     const stock = postedToday ? mi.stock_count : 0;
-    return Object.assign({}, mi, {
+    const out = Object.assign({}, mi, {
       category_name: c.name, cat_icon: c.icon, _sort: c.sort_order || 0,
       stock, posted_today: postedToday, is_available: stock > 0 ? 1 : 0
     });
+    if (!canSeeCost) delete out.cost_price;
+    return out;
   }).sort((a, b) => a._sort - b._sort || a.name.localeCompare(b.name));
   items.forEach(i => delete i._sort);
   return { items };
@@ -557,7 +603,8 @@ LOCAL.createMenu = (sess, body) => {
   db._seq.menu_items += 1;
   const id = db._seq.menu_items;
   db.menu_items.push({ id, category_id: Number(body.category_id), name: body.name, icon: body.icon || '🍽️',
-    price: Number(body.price), is_available: 0, stock_count: 0, stock_date: null, description: body.description || '' });
+    price: Number(body.price), cost_price: Number(body.cost_price) || 0,
+    is_available: 0, stock_count: 0, stock_date: null, description: body.description || '' });
   saveDB();
   return { ok: true, id };
 };
@@ -569,6 +616,7 @@ LOCAL.updateMenu = (sess, id, body) => {
   if (mi) {
     if (body.name) mi.name = body.name;
     if (body.price) mi.price = Number(body.price);
+    if (typeof body.cost_price !== 'undefined') mi.cost_price = Number(body.cost_price) || 0;
     if (body.icon) mi.icon = body.icon;
     if (body.category_id) mi.category_id = Number(body.category_id);
     if (body.description) mi.description = body.description;
@@ -594,9 +642,18 @@ LOCAL.postStock = (sess, id, count) => {
   if (!mi) throw new HttpError(404, 'Not found');
   const n = Number(count);
   if (isNaN(n) || n < 0) throw new HttpError(400, 'Idadi si sahihi');
+  const db = loadDB();
+  const previous = mi.stock_date === todayStr() ? mi.stock_count : 0;
   mi.stock_count = Math.trunc(n);
   mi.stock_date = todayStr();
   mi.is_available = mi.stock_count > 0 ? 1 : 0;
+  // Audit trail: every time Kitchen posts a count, log the before/after so
+  // Admin can later trace exactly when and by whom stock was set.
+  db.stock_log.push({
+    id: uuid(), menu_item_id: mi.id, item_name: mi.name, type: 'prepared',
+    previous_count: previous, new_count: mi.stock_count,
+    staff_id: sess.id, staff_name: sess.name, role: sess.role, created_at: nowISO()
+  });
   saveDB();
   const c = loadDB().categories.find(c => c.id === mi.category_id) || {};
   return { ok: true, item: Object.assign({}, mi, { category_name: c.name, cat_icon: c.icon, stock: mi.stock_count, posted_today: true }) };
@@ -671,13 +728,13 @@ LOCAL.getOrders = (sess, query) => {
     list = list.filter(o => statuses.includes(o.status));
   }
   list.sort((a, b) => b.created_at.localeCompare(a.created_at));
-  return { orders: list.map(enrichOrder) };
+  return { orders: list.map(o => enrichOrder(o, sess)) };
 };
 LOCAL.getOrder = (sess, id) => {
   requireSession(sess);
   const o = findOrder(id);
   if (!o) throw new HttpError(404, 'Not found');
-  return { order: enrichOrder(o) };
+  return { order: enrichOrder(o, sess) };
 };
 LOCAL.createOrder = (sess, body) => {
   requireRole(sess, 'Waiter', 'Cashier', 'Admin');
@@ -713,11 +770,19 @@ LOCAL.createOrder = (sess, body) => {
     }
   });
 
+  let costSubtotal = 0;
   const resolvedItems = items.map(item => {
     const mi = findMenuItem(item.menu_item_id);
     const lineTotal = mi.price * item.quantity;
+    // Snapshot the ingredient cost NOW, at the moment of sale — if Admin
+    // edits cost_price tomorrow, today's already-sold orders keep the
+    // margin that was actually true when they were sold.
+    const unitCost = Number(mi.cost_price) || 0;
+    const lineCost = round2(unitCost * item.quantity);
     subtotal += lineTotal;
-    return { menu_item_id: mi.id, quantity: item.quantity, unit_price: mi.price, line_total: lineTotal };
+    costSubtotal += lineCost;
+    return { menu_item_id: mi.id, quantity: item.quantity, unit_price: mi.price, line_total: lineTotal,
+      unit_cost: unitCost, line_cost: lineCost };
   });
   // Decrement stock now that every line has passed validation.
   Object.keys(grouped).forEach(menuItemId => {
@@ -726,12 +791,14 @@ LOCAL.createOrder = (sess, body) => {
   });
 
   const total = round2(subtotal);
+  const costAmount = round2(costSubtotal);
   const initialStatus = (sess.role === 'Cashier' || sess.role === 'Admin') ? 'confirmed' : 'pending_payment';
   const now = nowISO();
 
   db.orders.push({
     id: orderId, order_number: orderNum, waiter_id: assignedWaiter, table_number: tableNo,
     status: initialStatus, payment_method: null, subtotal, tax_amount: 0, total_amount: total,
+    cost_amount: costAmount, profit_amount: round2(total - costAmount),
     notes: notes || '', plates_taken_at: null, plates_returned: 0, plates_returned_at: null,
     plate_return_approved_by: null, created_at: now, updated_at: now,
     prep_started_at: null, prep_ready_at: null, items: resolvedItems,
@@ -745,7 +812,7 @@ LOCAL.createOrder = (sess, body) => {
   });
   saveDB();
 
-  const full = enrichOrder(findOrder(orderId));
+  const full = enrichOrder(findOrder(orderId), sess);
   return { ok: true, order: full, _event: initialStatus === 'confirmed' ? 'order:approved' : 'order:new' };
 };
 // ── quick sale (standalone simple cashier till) ─────────────────────
@@ -786,6 +853,10 @@ LOCAL.quickSale = (sess, body) => {
   db.orders.push({
     id: orderId, order_number: orderNum, waiter_id, table_number: null,
     status: 'paid', payment_method, subtotal, tax_amount: 0, total_amount: total,
+    // Quick Sale has no linked menu item, so there's no ingredient cost to
+    // snapshot — leave cost/profit null (not tracked) rather than implying
+    // a false 100% margin.
+    cost_amount: null, profit_amount: null,
     notes: '', plates_taken_at: null, plates_returned: 0, plates_returned_at: null,
     plate_return_approved_by: null, created_at: now, updated_at: now,
     prep_started_at: null, prep_ready_at: null, items: resolvedItems,
@@ -793,8 +864,40 @@ LOCAL.quickSale = (sess, body) => {
   });
   saveDB();
 
-  const full = enrichOrder(findOrder(orderId));
-  return { ok: true, order: full };
+  // ── Instant reconciliation: if this Quick Sale's item name matches a
+  // real menu item, check whether TODAY's cumulative Quick Sale total for
+  // that item now exceeds what the Chef actually logged as prepared.
+  // Selling more than was ever cooked is the clearest fraud/theft signal —
+  // flag it immediately rather than waiting for an end-of-day report.
+  const today = todayStr();
+  const flags = [];
+  const seenNames = new Set();
+  resolvedItems.forEach(it => {
+    const key = normName(it.item_name);
+    if (seenNames.has(key)) return; // avoid double-flagging the same item twice in one order
+    seenNames.add(key);
+    const mi = db.menu_items.find(m => normName(m.name) === key);
+    if (!mi) return; // no matching menu item — nothing to reconcile against
+    const prepared = preparedQtyForDate(db, mi.id, today);
+    const quickSold = quickSoldQtyForName(db, key, today);
+    if (quickSold > prepared) {
+      const audit = {
+        id: uuid(), menu_item_id: mi.id, item_name: mi.name, date: today,
+        source: 'quick_sale_reconciliation',
+        prepared_qty: prepared, quick_sold_qty: quickSold, discrepancy: quickSold - prepared,
+        flagged: true, order_id: orderId,
+        note: 'Jumla ya Quick Sale imezidi kiasi Mpishi alichoandika kimeandaliwa leo',
+        recorded_by: sess.id, recorded_by_name: sess.name, recorded_by_role: sess.role,
+        created_at: nowISO()
+      };
+      db.stock_audits.push(audit);
+      flags.push(audit);
+    }
+  });
+  if (flags.length) saveDB();
+
+  const full = enrichOrder(findOrder(orderId), sess);
+  return { ok: true, order: full, _flags: flags };
 };
 // ── delete historical Quick Sale orders (Admin one-time cleanup) ────
 // The standalone "Mauzo (Cashier Quick Sale)" feature has been removed
@@ -824,7 +927,7 @@ LOCAL.approveOrder = (sess, id) => {
   o.cashier_name = sess.name;
   o.updated_at = nowISO();
   saveDB();
-  return { ok: true, order: enrichOrder(o) };
+  return { ok: true, order: enrichOrder(o, sess) };
 };
 LOCAL.setStatus = (sess, id, status, payment_method) => {
   requireSession(sess);
@@ -848,19 +951,19 @@ LOCAL.setStatus = (sess, id, status, payment_method) => {
     o.paid_by = sess.id;
   }
   saveDB();
-  return { ok: true, order: enrichOrder(o) };
+  return { ok: true, order: enrichOrder(o, sess) };
 };
 LOCAL.platesTaken = (sess, id) => {
   requireRole(sess, 'Waiter', 'Admin');
   const o = findOrder(id);
   if (o) { o.plates_taken_at = nowISO(); o.updated_at = nowISO(); saveDB(); }
-  return { ok: true, order: enrichOrder(o) };
+  return { ok: true, order: enrichOrder(o, sess) };
 };
 LOCAL.platesReturned = (sess, id) => {
   requireRole(sess, 'Cashier', 'Admin');
   const o = findOrder(id);
   if (o) { o.plates_returned = 1; o.plates_returned_at = nowISO(); o.plate_return_approved_by = sess.id; o.updated_at = nowISO(); saveDB(); }
-  return { ok: true, order: enrichOrder(o) };
+  return { ok: true, order: enrichOrder(o, sess) };
 };
 
 LOCAL.getCashierStats = (sess) => {
@@ -885,9 +988,209 @@ LOCAL.getCashierStats = (sess) => {
       active_orders:       myActive.length,
       plate_alerts:        myPlateAlerts.length,
     },
-    paid_orders: myPaid.slice(-20).map(enrichOrder),
-    active_orders: myActive.map(enrichOrder),
-    plate_alerts: myPlateAlerts.map(enrichOrder),
+    paid_orders: myPaid.slice(-20).map(o => enrichOrder(o, sess)),
+    active_orders: myActive.map(o => enrichOrder(o, sess)),
+    plate_alerts: myPlateAlerts.map(o => enrichOrder(o, sess)),
+  };
+};
+
+// ── expenses (operational costs, stock purchases, etc.) ─────────────
+// Only Admin and Cashier can record or manage expenses. Waiter and
+// Kitchen have no access to this at all — matches till/cash-handling roles.
+LOCAL.getExpenses = (sess, from, to) => {
+  requireRole(sess, 'Admin', 'Cashier');
+  const db = loadDB();
+  const today = todayStr();
+  const f = from || today, t = to || today;
+  let list = db.expenses.filter(e => e.date >= f && e.date <= t);
+  // Cashiers see only what they personally recorded, same pattern as reports.
+  // Admin sees everything.
+  if (sess.role === 'Cashier') list = list.filter(e => e.recorded_by === sess.id);
+  list = list.slice().sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return { expenses: list, total: round2(list.reduce((s, e) => s + e.amount, 0)) };
+};
+LOCAL.addExpense = (sess, body) => {
+  requireRole(sess, 'Admin', 'Cashier');
+  body = body || {};
+  const category = String(body.category || '').trim();
+  const description = String(body.description || '').trim();
+  const amount = Number(body.amount);
+  if (!category) throw new HttpError(400, 'Chagua aina ya gharama');
+  if (!amount || amount <= 0) throw new HttpError(400, 'Kiasi si sahihi');
+  const db = loadDB();
+  const exp = {
+    id: uuid(), category, description, amount: round2(amount),
+    recorded_by: sess.id, recorded_by_name: sess.name, recorded_by_role: sess.role,
+    date: todayStr(), created_at: nowISO()
+  };
+  db.expenses.push(exp);
+  saveDB();
+  return { ok: true, expense: exp };
+};
+// Editing/deleting is Admin-only even though Cashiers can create expenses —
+// this stops a cashier from being able to quietly erase their own entries.
+LOCAL.updateExpense = (sess, id, body) => {
+  requireRole(sess, 'Admin');
+  body = body || {};
+  const db = loadDB();
+  const exp = db.expenses.find(e => e.id === id);
+  if (!exp) throw new HttpError(404, 'Not found');
+  if (body.category) exp.category = String(body.category).trim();
+  if (typeof body.description !== 'undefined') exp.description = String(body.description).trim();
+  if (typeof body.amount !== 'undefined') {
+    const amount = Number(body.amount);
+    if (!amount || amount <= 0) throw new HttpError(400, 'Kiasi si sahihi');
+    exp.amount = round2(amount);
+  }
+  saveDB();
+  return { ok: true, expense: exp };
+};
+LOCAL.deleteExpense = (sess, id) => {
+  requireRole(sess, 'Admin');
+  const db = loadDB();
+  const idx = db.expenses.findIndex(e => e.id === id);
+  if (idx !== -1) { db.expenses.splice(idx, 1); saveDB(); }
+  return { ok: true };
+};
+
+// ── stock audit (kitchen ↔ cashier reconciliation, theft/shrinkage) ──
+// The system already tracks an "expected remaining" count automatically:
+// mi.stock_count starts at what Kitchen posted and drops by exactly what
+// Cashier sells (see createOrder). That number can only be wrong if reality
+// (a physical recount of plates/portions in the kitchen) doesn't match it —
+// which is exactly the theft/shrinkage signal we want to catch. Any staff
+// who can physically see the kitchen stock can submit a recount; Admin and
+// Cashier can review flagged mismatches.
+LOCAL.recordStockCount = (sess, id, actualCount, note) => {
+  requireRole(sess, 'Admin', 'Cashier', 'Kitchen');
+  const mi = findMenuItem(id);
+  if (!mi) throw new HttpError(404, 'Not found');
+  const actual = Number(actualCount);
+  if (isNaN(actual) || actual < 0) throw new HttpError(400, 'Idadi si sahihi');
+  const db = loadDB();
+  const expected = mi.stock_count;
+  const actualTrunc = Math.trunc(actual);
+  const discrepancy = actualTrunc - expected;
+  const audit = {
+    id: uuid(), menu_item_id: mi.id, item_name: mi.name, date: todayStr(),
+    expected_qty: expected, actual_qty: actualTrunc, discrepancy,
+    flagged: discrepancy !== 0,
+    recorded_by: sess.id, recorded_by_name: sess.name, recorded_by_role: sess.role,
+    note: note || '', created_at: nowISO()
+  };
+  db.stock_audits.push(audit);
+  // Reconcile the system to the physical count so subsequent sales stay accurate.
+  mi.stock_count = actualTrunc;
+  mi.is_available = mi.stock_count > 0 ? 1 : 0;
+  saveDB();
+  return { ok: true, audit };
+};
+// Legitimate waste/spoilage/breakage — logging this BEFORE a recount keeps
+// it from being wrongly flagged as a discrepancy. Kitchen or Admin only.
+LOCAL.recordStockWaste = (sess, id, qty, reason) => {
+  requireRole(sess, 'Admin', 'Kitchen');
+  const mi = findMenuItem(id);
+  if (!mi) throw new HttpError(404, 'Not found');
+  const n = Number(qty);
+  if (!n || n <= 0) throw new HttpError(400, 'Idadi si sahihi');
+  const db = loadDB();
+  mi.stock_count = Math.max(0, mi.stock_count - Math.trunc(n));
+  mi.is_available = mi.stock_count > 0 ? 1 : 0;
+  db.stock_log.push({
+    id: uuid(), menu_item_id: mi.id, item_name: mi.name, type: 'waste', qty: Math.trunc(n),
+    reason: reason || '', staff_id: sess.id, staff_name: sess.name, role: sess.role, created_at: nowISO()
+  });
+  saveDB();
+  return { ok: true, item: mi };
+};
+LOCAL.getStockAudits = (sess) => {
+  requireRole(sess, 'Admin', 'Cashier');
+  const db = loadDB();
+  const list = db.stock_audits.slice().sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return { audits: list.slice(0, 200), unresolved: list.filter(a => a.flagged) };
+};
+LOCAL.getStockLog = (sess) => {
+  requireRole(sess, 'Admin', 'Cashier');
+  const db = loadDB();
+  return { log: db.stock_log.slice().sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 200) };
+};
+
+// ── Chef ↔ Quick Sale reconciliation report (Admin review) ──────────
+// For a given day: how much did Kitchen log as prepared for each item,
+// vs. how much did Cashier actually sell of that item through Quick Sale?
+// A positive variance (sold > prepared) means more was sold than was ever
+// cooked — the clear fraud/theft signal this feature exists to catch.
+// A negative variance just means unsold leftovers (normal, not flagged).
+LOCAL.getReconciliation = (sess, date) => {
+  requireRole(sess, 'Admin');
+  const db = loadDB();
+  const targetDate = date || todayStr();
+  const rows = db.menu_items.map(mi => {
+    const prepared = preparedQtyForDate(db, mi.id, targetDate);
+    const quickSold = quickSoldQtyForName(db, normName(mi.name), targetDate);
+    if (prepared === 0 && quickSold === 0) return null; // nothing happened with this item today
+    const variance = quickSold - prepared;
+    return {
+      menu_item_id: mi.id, item_name: mi.name, icon: mi.icon,
+      prepared_qty: prepared, quick_sold_qty: quickSold, variance,
+      status: variance > 0 ? 'critical' : (variance < 0 ? 'leftover' : 'matched')
+    };
+  }).filter(Boolean).sort((a, b) => b.variance - a.variance);
+
+  // Quick Sale entries whose typed name doesn't match ANY menu item at all —
+  // these can't be reconciled against a production log by name-matching,
+  // which is itself worth surfacing (could be a typo, or something never
+  // logged as prepared in the first place).
+  const menuNamesLower = new Set(db.menu_items.map(mi => normName(mi.name)));
+  const unmatchedMap = {};
+  db.orders.filter(o => o.status === 'paid' && dateOf(o.created_at) === targetDate).forEach(o => {
+    (o.items || []).filter(it => it.menu_item_id === null).forEach(it => {
+      const key = normName(it.item_name);
+      if (key && !menuNamesLower.has(key)) {
+        if (!unmatchedMap[key]) unmatchedMap[key] = { item_name: it.item_name, qty: 0 };
+        unmatchedMap[key].qty += it.quantity;
+      }
+    });
+  });
+
+  return {
+    date: targetDate,
+    rows,
+    critical_count: rows.filter(r => r.status === 'critical').length,
+    unmatched_quick_sale_items: Object.values(unmatchedMap)
+  };
+};
+
+// ── Integrated expense & sales settlement (Admin, Cashier only) ─────
+// Straightforward: revenue in the range, minus expenses in the range,
+// equals the net balance. Kept separate from getReports' more detailed
+// COGS-based profit figures because this is the simple top-line number
+// Admin/Cashier need at end of shift/day.
+LOCAL.getSettlement = (sess, from, to) => {
+  requireRole(sess, 'Admin', 'Cashier');
+  const db = loadDB();
+  const today = todayStr();
+  const f = from || today, t = to || today;
+  let paidOrders = db.orders.filter(o => o.status === 'paid' && dateOf(o.created_at) >= f && dateOf(o.created_at) <= t);
+  let expenses = db.expenses.filter(e => e.date >= f && e.date <= t);
+  // Same pattern as reports: a Cashier sees their own till only, Admin sees everything.
+  if (sess.role === 'Cashier') {
+    paidOrders = paidOrders.filter(o => o.cashier_id === sess.id);
+    expenses = expenses.filter(e => e.recorded_by === sess.id);
+  }
+  const revenue = round2(paidOrders.reduce((s, o) => s + o.total_amount, 0));
+  const expensesTotal = round2(expenses.reduce((s, e) => s + e.amount, 0));
+  const byCategory = {};
+  expenses.forEach(e => {
+    if (!byCategory[e.category]) byCategory[e.category] = { category: e.category, total: 0, count: 0 };
+    byCategory[e.category].total = round2(byCategory[e.category].total + e.amount);
+    byCategory[e.category].count += 1;
+  });
+  return {
+    from: f, to: t,
+    revenue, expenses: expensesTotal,
+    net_balance: round2(revenue - expensesTotal),
+    expense_breakdown: Object.values(byCategory)
   };
 };
 
