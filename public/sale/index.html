@@ -37,6 +37,18 @@
   .wt-btn{padding:12px 8px;border-radius:10px;border:1px solid rgba(212,175,55,.3);background:#150E09;color:#f3e9d8;font-size:.88rem;font-weight:600;cursor:pointer;text-align:center}
   .wt-btn.active{background:var(--gold);color:#1a1206;border-color:var(--gold)}
   .pm-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .tab-bar{display:flex;gap:0;margin-bottom:14px;background:#150E09;border-radius:12px;padding:4px;border:1px solid rgba(212,175,55,.18)}
+  .tab-btn{flex:1;padding:9px 4px;border:none;border-radius:9px;font-size:.78rem;font-weight:700;cursor:pointer;background:transparent;color:#c9b89a;transition:all .2s}
+  .tab-btn.active{background:linear-gradient(135deg,var(--gold),var(--gold-d));color:#1a1206}
+  .section{display:none}.section.active{display:block}
+  .stl-box{border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+  .stl-revenue{background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.3)}
+  .stl-expense{background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3)}
+  .stl-net{border-radius:12px;padding:18px 16px;display:flex;justify-content:space-between;align-items:center;border:2px solid}
+  .exp-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(212,175,55,.08)}
+  .exp-cat{font-weight:700;font-size:.9rem}
+  .exp-meta{font-size:.75rem;color:#9a8870;margin-top:2px}
+  .exp-amt{font-weight:800;color:var(--red)}
   .pm-btn{padding:10px 4px;border-radius:9px;border:1px solid rgba(212,175,55,.3);background:#150E09;color:#f3e9d8;font-size:.8rem;cursor:pointer}
   .pm-btn.active{background:var(--gold);color:#1a1206;border-color:var(--gold);font-weight:700}
   .muted{color:#9a8a70;font-size:.8rem}
@@ -68,59 +80,115 @@
 <!-- ═══ MAIN ═══ -->
 <div class="wrap" id="main-view" style="display:none">
   <div class="topbar">
-    <h1 style="margin:0">💰 Mauzo</h1>
-    <button class="logout" onclick="logout()">Toka (<span id="who"></span>)</button>
+    <h1 style="margin:0">💰 Ottoman Bey POS</h1>
+    <button class="logout" onclick="logout()">Logout (<span id="who"></span>)</button>
   </div>
 
   <div class="stats-row">
-    <div class="stat"><div class="stat-v" id="st-orders">0</div><div class="stat-l">Mauzo Leo</div></div>
-    <div class="stat"><div class="stat-v" id="st-revenue">TZS 0</div><div class="stat-l">Mapato Leo</div></div>
+    <div class="stat"><div class="stat-v" id="st-orders">0</div><div class="stat-l">Sales Today</div></div>
+    <div class="stat"><div class="stat-v" id="st-revenue">TZS 0</div><div class="stat-l">Revenue Today</div></div>
   </div>
 
-  <div id="entry-form">
-  <!-- Add item -->
-  <div class="card">
-    <div class="cd">1. Andika Chakula</div>
-    <div class="row3">
-      <div><span class="lbl">Chakula</span><input class="input" id="in-name" placeholder="mf. Chips mayai"></div>
-      <div><span class="lbl">Idadi</span><input class="input" id="in-qty" type="number" min="1" value="1" inputmode="numeric"></div>
-      <div><span class="lbl">Bei</span><input class="input" id="in-price" type="number" min="0" placeholder="3000" inputmode="numeric"></div>
+  <!-- Tab Navigation -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('sale')">💰 Sale</button>
+    <button class="tab-btn" onclick="switchTab('expenses')">💸 Expenses</button>
+    <button class="tab-btn" onclick="switchTab('settlement')">🧾 Settlement</button>
+  </div>
+
+  <!-- ── SALES TAB ── -->
+  <div class="section active" id="tab-sale">
+    <div id="entry-form">
+      <div class="card">
+        <div class="cd">1. Enter Food Item</div>
+        <div class="row3">
+          <div><span class="lbl">Item Name</span><input class="input" id="in-name" placeholder="e.g. Chips Mayai"></div>
+          <div><span class="lbl">Qty</span><input class="input" id="in-qty" type="number" min="1" value="1" inputmode="numeric"></div>
+          <div><span class="lbl">Price</span><input class="input" id="in-price" type="number" min="0" placeholder="3000" inputmode="numeric"></div>
+        </div>
+        <div class="err" id="in-err"></div>
+        <button class="btn btn-dark" onclick="addLine()">➕ Add to Order</button>
+      </div>
+
+      <div class="card" id="lines-card" style="display:none">
+        <div class="cd">Current Order</div>
+        <div id="lines-list"></div>
+        <div class="order-total-bar"><span>TOTAL</span><span id="order-total" style="color:var(--gold)">TZS 0</span></div>
+      </div>
+
+      <div class="card" id="waiter-card" style="display:none">
+        <div class="cd">2. Assign Waiter</div>
+        <div class="waiter-grid" id="waiter-grid"><div class="spinner"></div></div>
+      </div>
+
+      <div class="card" id="pay-card" style="display:none">
+        <div class="cd">3. Payment Method</div>
+        <div class="pm-grid" style="margin-bottom:12px">
+          <button class="pm-btn active" onclick="selPM('cash',this)">💵 Cash</button>
+          <button class="pm-btn" onclick="selPM('mpesa',this)">📱 M-Pesa</button>
+          <button class="pm-btn" onclick="selPM('tigopesa',this)">📲 Tigo</button>
+          <button class="pm-btn" onclick="selPM('airtelmoney',this)">📶 Airtel</button>
+          <button class="pm-btn" onclick="selPM('card',this)">💳 Card</button>
+          <button class="pm-btn" onclick="selPM('bank',this)">🏦 Bank</button>
+        </div>
+        <button class="btn btn-green" onclick="completeSale()" id="sale-btn">✅ Complete Sale</button>
+      </div>
     </div>
-    <div class="err" id="in-err"></div>
-    <button class="btn btn-dark" onclick="addLine()">➕ Ongeza kwenye Order</button>
-  </div>
 
-  <!-- Current order lines -->
-  <div class="card" id="lines-card" style="display:none">
-    <div class="cd">Order ya Sasa</div>
-    <div id="lines-list"></div>
-    <div class="order-total-bar"><span>JUMLA</span><span id="order-total" style="color:var(--gold)">TZS 0</span></div>
-  </div>
-
-  <!-- Waiter picker -->
-  <div class="card" id="waiter-card" style="display:none">
-    <div class="cd">2. Nani Ameuza (Waiter)</div>
-    <div class="waiter-grid" id="waiter-grid"><div class="spinner"></div></div>
-  </div>
-
-  <!-- Payment + submit -->
-  <div class="card" id="pay-card" style="display:none">
-    <div class="cd">3. Njia ya Malipo</div>
-    <div class="pm-grid" style="margin-bottom:12px">
-      <button class="pm-btn active" onclick="selPM('cash',this)">💵 Cash</button>
-      <button class="pm-btn" onclick="selPM('mpesa',this)">📱 M-Pesa</button>
-      <button class="pm-btn" onclick="selPM('tigopesa',this)">📲 Tigo</button>
-      <button class="pm-btn" onclick="selPM('airtelmoney',this)">📶 Airtel</button>
-      <button class="pm-btn" onclick="selPM('card',this)">💳 Kadi</button>
-      <button class="pm-btn" onclick="selPM('bank',this)">🏦 Benki</button>
+    <div class="card">
+      <div class="cd">🧾 Today's Sales</div>
+      <div id="today-log"><div class="spinner"></div></div>
     </div>
-    <button class="btn btn-green" onclick="completeSale()" id="sale-btn">✅ Kamilisha Mauzo</button>
-  </div>
   </div>
 
-  <div class="card">
-    <div class="cd">🧾 Mauzo ya Leo</div>
-    <div id="today-log"><div class="spinner"></div></div>
+  <!-- ── EXPENSES TAB ── -->
+  <div class="section" id="tab-expenses">
+    <div class="card">
+      <div class="cd">➕ Record New Expense</div>
+      <select class="input" id="exp-cat" style="margin-bottom:10px">
+        <option value="">-- Select Category --</option>
+        <option>Staff Wages</option>
+        <option>Electricity</option>
+        <option>Water</option>
+        <option>Gas / Charcoal</option>
+        <option>Supplies Purchase</option>
+        <option>Transport</option>
+        <option>Maintenance</option>
+        <option>Rent</option>
+        <option>Other</option>
+      </select>
+      <input class="input" id="exp-desc" placeholder="Description (optional)">
+      <input class="input" type="number" id="exp-amt" placeholder="Amount (TZS)" min="1" inputmode="numeric">
+      <button class="btn btn-gold" onclick="submitExpense()">💾 Save Expense</button>
+      <div id="exp-msg" style="text-align:center;font-size:.85rem;margin-top:8px;min-height:18px"></div>
+    </div>
+
+    <div class="card">
+      <div class="cd" style="display:flex;justify-content:space-between;align-items:center">
+        <span>📋 Today's Expenses</span>
+        <div style="display:flex;gap:6px">
+          <input type="date" id="exp-from" class="input" style="width:130px;padding:6px;margin:0">
+          <input type="date" id="exp-to" class="input" style="width:130px;padding:6px;margin:0">
+          <button class="btn btn-dark" style="padding:6px 10px;width:auto" onclick="loadExpenses()">🔍</button>
+        </div>
+      </div>
+      <div id="exp-list" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- ── SETTLEMENT TAB ── -->
+  <div class="section" id="tab-settlement">
+    <div class="card">
+      <div class="cd" style="display:flex;justify-content:space-between;align-items:center">
+        <span>📅 Date Range</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="date" id="stl-from" class="input" style="width:130px;padding:6px;margin:0">
+          <input type="date" id="stl-to" class="input" style="width:130px;padding:6px;margin:0">
+          <button class="btn btn-gold" style="padding:6px 12px;width:auto" onclick="loadSettlement()">🔍</button>
+        </div>
+      </div>
+    </div>
+    <div id="stl-view"></div>
   </div>
 </div>
 
@@ -310,6 +378,117 @@ async function loadStats(){
         <span>${(o.payment_method||'—').toUpperCase()} · <b style="color:var(--gold)">${fmtTZS(o.amount)}</b></span>
       </div>`).join(''):'<p class="empty">Bado hakuna mauzo leo</p>';
   }catch(e){document.getElementById('today-log').innerHTML=`<p class="err">${e.message}</p>`;}
+}
+
+// ── Tab switching ────────────────────────────────────────────
+function switchTab(name){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if(name==='expenses') loadExpenses();
+  if(name==='settlement') loadSettlement();
+}
+
+// ── Expenses ─────────────────────────────────────────────────
+async function submitExpense(){
+  const cat=document.getElementById('exp-cat').value.trim();
+  const desc=document.getElementById('exp-desc').value.trim();
+  const amt=document.getElementById('exp-amt').value;
+  const msg=document.getElementById('exp-msg');
+  if(!cat){msg.style.color='var(--red)';msg.textContent='Please select a category';return;}
+  if(!amt||Number(amt)<=0){msg.style.color='var(--red)';msg.textContent='Please enter a valid amount';return;}
+  msg.style.color='#c9b89a';msg.textContent='Saving…';
+  try{
+    await api('/api/expenses',{method:'POST',body:JSON.stringify({category:cat,description:desc,amount:Number(amt)})});
+    document.getElementById('exp-cat').value='';
+    document.getElementById('exp-desc').value='';
+    document.getElementById('exp-amt').value='';
+    msg.style.color='var(--green)';msg.textContent='✅ Expense saved!';
+    setTimeout(()=>{msg.textContent='';},2500);
+    await loadExpenses();
+  }catch(e){msg.style.color='var(--red)';msg.textContent='Error: '+e.message;}
+}
+async function loadExpenses(){
+  const today=new Date().toISOString().slice(0,10);
+  const fromEl=document.getElementById('exp-from');
+  const toEl=document.getElementById('exp-to');
+  if(fromEl&&!fromEl.value) fromEl.value=today;
+  if(toEl&&!toEl.value) toEl.value=today;
+  const f=fromEl?fromEl.value:today;
+  const t=toEl?toEl.value:today;
+  const el=document.getElementById('exp-list');
+  if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:14px;color:#9a8870">Loading…</div>';
+  try{
+    const d=await api(`/api/expenses?from=${f}&to=${t}`);
+    if(!d.expenses||!d.expenses.length){
+      el.innerHTML='<div style="text-align:center;padding:14px;color:#9a8870">No expenses recorded for this period</div>';return;
+    }
+    el.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(231,76,60,.1);border-radius:8px;margin-bottom:12px;border:1px solid rgba(231,76,60,.25)">
+        <span style="font-weight:700">Total Expenses</span>
+        <span style="font-weight:800;color:var(--red)">${fmtTZS(d.total)}</span>
+      </div>
+      ${d.expenses.map(e=>`
+      <div class="exp-row">
+        <div>
+          <div class="exp-cat">${e.category}</div>
+          ${e.description?`<div class="exp-meta">${e.description}</div>`:''}
+          <div class="exp-meta">🕒 ${new Date(e.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · ${e.recorded_by_name}</div>
+        </div>
+        <span class="exp-amt">${fmtTZS(e.amount)}</span>
+      </div>`).join('')}`;
+  }catch(e){el.innerHTML=`<div style="color:var(--red);padding:10px">Error: ${e.message}</div>`;}
+}
+
+// ── Settlement ────────────────────────────────────────────────
+async function loadSettlement(){
+  const today=new Date().toISOString().slice(0,10);
+  const fromEl=document.getElementById('stl-from');
+  const toEl=document.getElementById('stl-to');
+  if(fromEl&&!fromEl.value) fromEl.value=today;
+  if(toEl&&!toEl.value) toEl.value=today;
+  const f=fromEl?fromEl.value:today;
+  const t=toEl?toEl.value:today;
+  const el=document.getElementById('stl-view');
+  if(!el)return;
+  el.innerHTML='<div style="text-align:center;padding:20px;color:#9a8870">Loading…</div>';
+  try{
+    const d=await api(`/api/settlement?from=${f}&to=${t}`);
+    const profit=d.net_balance>=0;
+    el.innerHTML=`
+      <div class="card stl-revenue">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:.75rem;color:#9a8870;margin-bottom:3px">TOTAL SALES REVENUE</div><div style="font-weight:800;font-size:1.2rem;color:var(--green)">${fmtTZS(d.revenue)}</div></div>
+          <span style="font-size:1.8rem">💰</span>
+        </div>
+      </div>
+      <div class="card stl-expense">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:.75rem;color:#9a8870;margin-bottom:3px">TOTAL EXPENSES</div><div style="font-weight:800;font-size:1.2rem;color:var(--red)">${fmtTZS(d.expenses)}</div></div>
+          <span style="font-size:1.8rem">💸</span>
+        </div>
+      </div>
+      <div class="card" style="border:2px solid ${profit?'rgba(46,204,113,.5)':'rgba(231,76,60,.5)'};background:${profit?'rgba(46,204,113,.07)':'rgba(231,76,60,.07)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:.75rem;color:#9a8870;margin-bottom:3px">${profit?'NET PROFIT':'NET LOSS'}</div>
+            <div style="font-weight:800;font-size:1.5rem;color:${profit?'var(--green)':'var(--red)'}">${fmtTZS(d.net_balance)}</div>
+          </div>
+          <span style="font-size:2rem">${profit?'✅':'⚠️'}</span>
+        </div>
+      </div>
+      ${d.expense_breakdown&&d.expense_breakdown.length?`
+      <div class="card">
+        <div class="cd">Expenses by Category</div>
+        ${d.expense_breakdown.map(c=>`
+        <div class="exp-row">
+          <div><div class="exp-cat">${c.category}</div><div class="exp-meta">${c.count} record${c.count!==1?'s':''}</div></div>
+          <span class="exp-amt">${fmtTZS(c.total)}</span>
+        </div>`).join('')}
+      </div>`:''}`;
+  }catch(e){el.innerHTML=`<div style="color:var(--red);padding:10px">Error: ${e.message}</div>`;}
 }
 
 // Auto-restore session for this browser tab only (sessionStorage, not
