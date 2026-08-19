@@ -128,6 +128,31 @@ app.post('/api/menu/:id/stock', handle(req => {
 }));
 app.delete('/api/menu/:id', handle(req => LOCAL.deleteMenu(req.session, req.params.id)));
 
+// Physical recount — instantly flags a mismatch if what's actually in the
+// kitchen doesn't match what the system expects (theft/shrinkage signal).
+app.post('/api/menu/:id/stock-count', handle(req => {
+  const out = LOCAL.recordStockCount(req.session, req.params.id, req.body && req.body.actual_count, req.body && req.body.note);
+  if (out.audit.flagged) emitEvent('stock:discrepancy', { audit: out.audit });
+  return out;
+}));
+app.post('/api/menu/:id/waste', handle(req => {
+  const out = LOCAL.recordStockWaste(req.session, req.params.id, req.body && req.body.qty, req.body && req.body.reason);
+  emitEvent('menu:updated', { item: out.item });
+  return out;
+}));
+app.get('/api/stock-audits', handle(req => LOCAL.getStockAudits(req.session)));
+app.get('/api/stock-log', handle(req => LOCAL.getStockLog(req.session)));
+// Chef-prepared vs Quick-Sale-sold variance report — Admin review only.
+app.get('/api/reconciliation', handle(req => LOCAL.getReconciliation(req.session, req.query.date)));
+// Integrated expense & sales settlement — Admin, Cashier only.
+app.get('/api/settlement', handle(req => LOCAL.getSettlement(req.session, req.query.from, req.query.to)));
+
+// ── expenses (Admin, Cashier only — enforced in db.js) ───────────────
+app.get('/api/expenses', handle(req => LOCAL.getExpenses(req.session, req.query.from, req.query.to)));
+app.post('/api/expenses', handle(req => LOCAL.addExpense(req.session, req.body)));
+app.put('/api/expenses/:id', handle(req => LOCAL.updateExpense(req.session, req.params.id, req.body)));
+app.delete('/api/expenses/:id', handle(req => LOCAL.deleteExpense(req.session, req.params.id)));
+
 // ── attendance ────────────────────────────────────────────────────────
 app.post('/api/attendance/clock-in', handle(req => LOCAL.clockIn(req.session)));
 app.post('/api/attendance/clock-out', handle(req => LOCAL.clockOut(req.session)));
@@ -147,6 +172,12 @@ app.post('/api/quick-sale', handle(req => {
   const out = LOCAL.quickSale(req.session, req.body);
   emitEvent('order:approved', { order: out.order });
   emitEvent('order:status', { order_id: out.order.id, status: 'paid', order: out.order });
+  // Instant fraud/theft alert: Quick Sale total for an item just exceeded
+  // what the Chef logged as prepared today.
+  if (out._flags && out._flags.length) {
+    out._flags.forEach(audit => emitEvent('stock:discrepancy', { audit }));
+  }
+  delete out._flags;
   return out;
 }));
 app.post('/api/orders/:id/approve', handle(req => {
