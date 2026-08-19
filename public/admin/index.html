@@ -406,6 +406,15 @@
         <div id="reports-view"></div>
       </div>
 
+      <!-- ══ EXPENSES ══ (Admin & Cashier) -->
+      <div class="page" id="pg-expenses"></div>
+
+      <!-- ══ SETTLEMENT ══ (Admin & Cashier) -->
+      <div class="page" id="pg-settlement"></div>
+
+      <!-- ══ RECONCILIATION ══ (Admin only) -->
+      <div class="page" id="pg-reconciliation"></div>
+
       <!-- ══ ADMIN: ROLE STATS ══ -->
       <!-- renderRoleStats() fills this container dynamically with per-role tables -->
       <div class="page" id="pg-admin-roles"></div>
@@ -974,6 +983,9 @@ function getNavs(){
       {p:'pg-admin-menu',    i:'🍽️', l:t('nav.menu')},
       {p:'pg-admin-staff',   i:'👥', l:t('nav.staff')},
       {p:'pg-admin-reports', i:'📄', l:t('nav.reports')},
+      {p:'pg-expenses',      i:'💸', l:'Gharama'},
+      {p:'pg-settlement',    i:'🧾', l:'Hesabu'},
+      {p:'pg-reconciliation',i:'🔍', l:'Rekodi'},
       {p:'pg-admin-roles',   i:'📊', l:t('nav.roleStats')},
       {p:'pg-attendance',    i:'🕒', l:t('nav.attendance')},
       {p:'pg-admin-settings',i:'⚙️', l:t('nav.settings')},
@@ -985,6 +997,8 @@ function getNavs(){
       {p:'pg-cashier-avail',  i:'📦', l:t('nav.foodStock')},
       {p:'pg-cashier-waiters',i:'👥', l:t('nav.waiterStatus')},
       {p:'pg-cashier-trends', i:'📈', l:t('nav.waiterTrends')},
+      {p:'pg-expenses',       i:'💸', l:'Gharama'},
+      {p:'pg-settlement',     i:'🧾', l:'Hesabu'},
       {p:'pg-attendance',     i:'🕒', l:t('nav.attendance')},
       chatItem,
     ],
@@ -1040,6 +1054,9 @@ function renderPage(pid){
     'pg-admin-menu':     renderAdminMenu,
     'pg-admin-staff':    renderAdminStaff,
     'pg-admin-reports':  renderReports,
+    'pg-expenses':       renderExpenses,
+    'pg-settlement':     renderSettlement,
+    'pg-reconciliation': renderReconciliation,
     'pg-admin-roles':    renderRoleStats,
     'pg-admin-settings': renderAdminSettings,
     'pg-attendance':     renderAttendance,
@@ -2509,6 +2526,230 @@ document.addEventListener('DOMContentLoaded',async()=>{
     try{const sd=await API.getSettings();SETTINGS_CACHE=sd.settings||SETTINGS_CACHE;}catch(_){}
   }catch(_){}
 });
+
+// ══════════════════════════════════════════════════════════════
+// EXPENSES — add & list operational costs (Admin + Cashier)
+// ══════════════════════════════════════════════════════════════
+const EXPENSE_CATS=['Malipo ya Mfanyakazi','Umeme','Maji','Gesi / Makaa','Manunuzi ya Vifaa','Nauli','Matengenezo','Pango','Nyingine'];
+async function renderExpenses(){
+  const el=document.getElementById('pg-expenses');
+  el.innerHTML=`<div class="page-hd flex-b"><div class="page-title">💸 Gharama za Uendeshaji</div></div>
+  <div style="padding:14px;max-width:700px;margin:0 auto">
+    <div class="card mb-16">
+      <div class="card-hd"><span class="card-hd-title">➕ Ongeza Gharama Mpya</span></div>
+      <div class="card-bd" style="display:grid;gap:10px">
+        <select class="select" id="exp-cat"><option value="">-- Chagua Aina --</option>${EXPENSE_CATS.map(c=>`<option>${c}</option>`).join('')}</select>
+        <input class="input" id="exp-desc" placeholder="Maelezo (si lazima)">
+        <input class="input" type="number" id="exp-amt" placeholder="Kiasi (TZS)" min="1">
+        <button class="btn btn-gold btn-block" onclick="submitExpense()">💾 Hifadhi Gharama</button>
+        <div id="exp-msg" style="text-align:center;font-size:.85rem"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd flex-b">
+        <span class="card-hd-title">📋 Gharama za Leo</span>
+        <div class="flex gap-8 ai-c">
+          <input class="input" type="date" id="exp-from" style="width:135px">
+          <input class="input" type="date" id="exp-to" style="width:135px">
+          <button class="btn btn-dark btn-sm" onclick="loadExpenses()">🔍</button>
+        </div>
+      </div>
+      <div id="exp-list" class="card-bd"></div>
+    </div>
+  </div>`;
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('exp-from').value=today;
+  document.getElementById('exp-to').value=today;
+  await loadExpenses();
+}
+async function loadExpenses(){
+  const f=document.getElementById('exp-from').value;
+  const t=document.getElementById('exp-to').value;
+  const el=document.getElementById('exp-list');
+  el.innerHTML='<div style="text-align:center;padding:20px;color:var(--gray)">Inapakia…</div>';
+  try{
+    const d=await API.apiFetch(`/api/expenses?from=${f}&to=${t}`);
+    if(!d.expenses||!d.expenses.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--gray)">Hakuna gharama zilizorekodiwa</div>';return;}
+    el.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:10px 14px;background:rgba(212,175,55,.08);border-radius:8px">
+        <span style="font-weight:700;color:var(--gold)">Jumla ya Gharama</span>
+        <span style="font-weight:800;font-size:1.1rem;color:#EF9A9A">${fmtTZS(d.total)}</span>
+      </div>
+      ${d.expenses.map(e=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+        <div>
+          <div style="font-weight:700;color:var(--white)">${e.category}</div>
+          ${e.description?`<div style="font-size:.8rem;color:var(--gray2)">${e.description}</div>`:''}
+          <div style="font-size:.75rem;color:var(--gray);margin-top:3px">🕒 ${fmtDT(e.created_at)} · ${e.recorded_by_name}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-weight:800;color:#EF9A9A">${fmtTZS(e.amount)}</span>
+          ${SESSION.role==='Admin'?`<button class="btn btn-danger btn-sm" onclick="deleteExpense('${e.id}')">🗑️</button>`:''}
+        </div>
+      </div>`).join('')}`;
+  }catch(err){el.innerHTML=`<div style="color:#EF9A9A;padding:14px">Hitilafu: ${err.message}</div>`;}
+}
+async function submitExpense(){
+  const cat=document.getElementById('exp-cat').value.trim();
+  const desc=document.getElementById('exp-desc').value.trim();
+  const amt=document.getElementById('exp-amt').value;
+  const msg=document.getElementById('exp-msg');
+  if(!cat){msg.style.color='#EF9A9A';msg.textContent='Tafadhali chagua aina ya gharama';return;}
+  if(!amt||Number(amt)<=0){msg.style.color='#EF9A9A';msg.textContent='Weka kiasi sahihi';return;}
+  msg.style.color='var(--gray2)';msg.textContent='Inahifadhi…';
+  try{
+    await API.apiFetch('/api/expenses',{method:'POST',body:JSON.stringify({category:cat,description:desc,amount:Number(amt)})});
+    document.getElementById('exp-cat').value='';
+    document.getElementById('exp-desc').value='';
+    document.getElementById('exp-amt').value='';
+    msg.style.color='#69F0AE';msg.textContent='✅ Gharama imehifadhiwa!';
+    setTimeout(()=>{msg.textContent='';},2500);
+    await loadExpenses();
+  }catch(err){msg.style.color='#EF9A9A';msg.textContent='Hitilafu: '+err.message;}
+}
+async function deleteExpense(id){
+  if(!confirm('Futa gharama hii?'))return;
+  try{await API.apiFetch(`/api/expenses/${id}`,{method:'DELETE'});await loadExpenses();}
+  catch(err){alert('Hitilafu: '+err.message);}
+}
+
+// ══════════════════════════════════════════════════════════════
+// SETTLEMENT — revenue minus expenses = net balance (Admin + Cashier)
+// ══════════════════════════════════════════════════════════════
+async function renderSettlement(){
+  const el=document.getElementById('pg-settlement');
+  const today=new Date().toISOString().slice(0,10);
+  el.innerHTML=`
+  <div class="page-hd flex-b"><div class="page-title">🧾 Hesabu ya Siku</div></div>
+  <div style="padding:14px;max-width:700px;margin:0 auto">
+    <div class="card mb-16">
+      <div class="card-hd flex-b">
+        <span class="card-hd-title">📅 Chagua Kipindi</span>
+        <div class="flex gap-8 ai-c">
+          <input class="input" type="date" id="stl-from" value="${today}" style="width:135px">
+          <input class="input" type="date" id="stl-to" value="${today}" style="width:135px">
+          <button class="btn btn-gold btn-sm" onclick="loadSettlement()">🔍 Angalia</button>
+        </div>
+      </div>
+    </div>
+    <div id="stl-view"></div>
+  </div>`;
+  await loadSettlement();
+}
+async function loadSettlement(){
+  const f=document.getElementById('stl-from').value;
+  const t=document.getElementById('stl-to').value;
+  const el=document.getElementById('stl-view');
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--gray)">Inapakia…</div>';
+  try{
+    const d=await API.apiFetch(`/api/settlement?from=${f}&to=${t}`);
+    const isProfit=d.net_balance>=0;
+    el.innerHTML=`
+      <div style="display:grid;gap:12px">
+        <div class="card">
+          <div class="card-bd" style="display:grid;gap:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(105,240,174,.07);border-radius:8px;border:1px solid rgba(105,240,174,.2)">
+              <span style="font-weight:700">💰 Jumla ya Mauzo</span>
+              <span style="font-weight:800;color:#69F0AE;font-size:1.1rem">${fmtTZS(d.revenue)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(239,154,154,.07);border-radius:8px;border:1px solid rgba(239,154,154,.2)">
+              <span style="font-weight:700">💸 Jumla ya Gharama</span>
+              <span style="font-weight:800;color:#EF9A9A;font-size:1.1rem">${fmtTZS(d.expenses)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px;border-radius:10px;border:2px solid ${isProfit?'rgba(105,240,174,.5)':'rgba(239,154,154,.5)'};background:${isProfit?'rgba(105,240,174,.1)':'rgba(239,154,154,.1)'}">
+              <span style="font-weight:800;font-size:1.1rem">${isProfit?'✅ Faida Halisi':'⚠️ Hasara'}</span>
+              <span style="font-weight:800;font-size:1.4rem;color:${isProfit?'#69F0AE':'#EF9A9A'}">${fmtTZS(d.net_balance)}</span>
+            </div>
+          </div>
+        </div>
+        ${d.expense_breakdown&&d.expense_breakdown.length?`
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-title">📂 Gharama kwa Aina</span></div>
+          <div class="card-bd" style="display:grid;gap:8px">
+            ${d.expense_breakdown.map(c=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+              <div>
+                <span style="font-weight:700">${c.category}</span>
+                <span style="margin-left:8px;font-size:.78rem;color:var(--gray2)">(${c.count} rekodi)</span>
+              </div>
+              <span style="color:#EF9A9A;font-weight:700">${fmtTZS(c.total)}</span>
+            </div>`).join('')}
+          </div>
+        </div>`:''}
+      </div>`;
+  }catch(err){el.innerHTML=`<div style="color:#EF9A9A;padding:14px">Hitilafu: ${err.message}</div>`;}
+}
+
+// ══════════════════════════════════════════════════════════════
+// RECONCILIATION — Chef prepared vs Cashier Quick Sale (Admin only)
+// ══════════════════════════════════════════════════════════════
+async function renderReconciliation(){
+  const el=document.getElementById('pg-reconciliation');
+  const today=new Date().toISOString().slice(0,10);
+  el.innerHTML=`
+  <div class="page-hd flex-b"><div class="page-title">🔍 Rekodi ya Jiko ↔ POS</div></div>
+  <div style="padding:14px;max-width:700px;margin:0 auto">
+    <div class="card mb-16">
+      <div class="card-hd flex-b">
+        <span class="card-hd-title">📅 Chagua Tarehe</span>
+        <div class="flex gap-8 ai-c">
+          <input class="input" type="date" id="rec-date" value="${today}" style="width:155px">
+          <button class="btn btn-gold btn-sm" onclick="loadReconciliation()">🔍 Angalia</button>
+        </div>
+      </div>
+    </div>
+    <div id="rec-view"></div>
+  </div>`;
+  await loadReconciliation();
+}
+async function loadReconciliation(){
+  const date=document.getElementById('rec-date').value;
+  const el=document.getElementById('rec-view');
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--gray)">Inapakia…</div>';
+  try{
+    const d=await API.apiFetch(`/api/reconciliation?date=${date}`);
+    if(!d.rows.length&&!d.unmatched_quick_sale_items.length){
+      el.innerHTML='<div style="text-align:center;padding:30px;color:var(--gray)">Hakuna data ya kulinganisha siku hii</div>';return;
+    }
+    const statusLabel={'matched':'✅ Imelingana','leftover':'📦 Imesalia','critical':'🚨 TATIZO'};
+    const statusColor={'matched':'#69F0AE','leftover':'#FFCC80','critical':'#EF9A9A'};
+    el.innerHTML=`
+      ${d.critical_count>0?`
+      <div style="background:rgba(239,154,154,.15);border:2px solid #EF9A9A;border-radius:10px;padding:14px;margin-bottom:14px;text-align:center">
+        <div style="font-size:1.4rem">🚨</div>
+        <div style="font-weight:800;color:#EF9A9A;font-size:1rem">Tofauti ${d.critical_count} imegunduliwa!</div>
+        <div style="font-size:.84rem;color:var(--gray2);margin-top:4px">Chakula kiliuzwa zaidi ya kilichopikwa — angalia haraka</div>
+      </div>`:''}
+      <div class="card mb-12">
+        <div class="card-hd"><span class="card-hd-title">📊 Kulinganisha kwa Bidhaa</span></div>
+        <div class="card-bd" style="display:grid;gap:2px">
+          <div style="display:grid;grid-template-columns:1fr 80px 80px 80px 90px;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:.75rem;color:var(--gray);font-weight:700;text-transform:uppercase">
+            <span>Bidhaa</span><span style="text-align:center">Ilipikwa</span><span style="text-align:center">Iliuzwa</span><span style="text-align:center">Tofauti</span><span style="text-align:center">Hali</span>
+          </div>
+          ${d.rows.map(r=>`
+          <div style="display:grid;grid-template-columns:1fr 80px 80px 80px 90px;gap:8px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05);align-items:center">
+            <span style="font-weight:700">${r.icon||'🍽️'} ${r.item_name}</span>
+            <span style="text-align:center;color:var(--gray2)">${r.prepared_qty}</span>
+            <span style="text-align:center;color:var(--gray2)">${r.quick_sold_qty}</span>
+            <span style="text-align:center;font-weight:700;color:${r.variance>0?'#EF9A9A':r.variance<0?'#FFCC80':'#69F0AE'}">${r.variance>0?'+':''}${r.variance}</span>
+            <span style="text-align:center;font-size:.75rem;font-weight:700;color:${statusColor[r.status]}">${statusLabel[r.status]}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+      ${d.unmatched_quick_sale_items.length?`
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-title" style="color:#FFCC80">⚠️ Quick Sale bila Rekodi ya Jiko</span></div>
+        <div class="card-bd">
+          <div style="font-size:.82rem;color:var(--gray2);margin-bottom:10px">Bidhaa hizi ziliuzwa kwenye Quick Sale lakini hazikuandikwa na Mpishi — zinaweza kuwa makosa ya jina au ulaghai</div>
+          ${d.unmatched_quick_sale_items.map(u=>`
+          <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+            <span style="color:#FFCC80;font-weight:700">${u.item_name}</span>
+            <span style="color:var(--gray2)">Idadi: ${u.qty}</span>
+          </div>`).join('')}
+        </div>
+      </div>`:''}`;
+  }catch(err){el.innerHTML=`<div style="color:#EF9A9A;padding:14px">Hitilafu: ${err.message}</div>`;}
+}
 </script>
 </body>
 </html>
