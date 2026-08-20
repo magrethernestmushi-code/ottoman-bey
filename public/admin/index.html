@@ -626,6 +626,37 @@ const TRANSLATIONS = {
     // Empty states
     'empty.noOrders':'No orders here','empty.noItems':'No items found',
     'empty.noStaff':'No staff found',
+    // Nav — new screens
+    'nav.expenses':'Expenses','nav.settlement':'Settlement','nav.reconciliation':'Audit',
+    // Expenses page
+    'exp.title':'💸 Operational Expenses','exp.addNew':'➕ Add New Expense',
+    'exp.selectCat':'-- Select Category --','exp.descPH':'Description (optional)',
+    'exp.amtPH':'Amount (TZS)','exp.saveBtn':'💾 Save Expense',
+    'exp.total':'Total Expenses','exp.none':'No expenses recorded for this period',
+    'exp.loading':'Loading…','exp.saving':'Saving…','exp.saved':'✅ Expense saved!',
+    'exp.errCat':'Please select a category','exp.errAmt':'Please enter a valid amount',
+    'exp.delConfirm':'Delete this expense?','exp.listTitle':'📋 Expenses',
+    'exp.todayFilter':'Filter by date',
+    'expcat.wages':'Staff Wages','expcat.electricity':'Electricity','expcat.water':'Water',
+    'expcat.gas':'Gas / Charcoal','expcat.supplies':'Supplies Purchase',
+    'expcat.transport':'Transport','expcat.maintenance':'Maintenance',
+    'expcat.rent':'Rent','expcat.other':'Other',
+    // Settlement page
+    'stl.title':'🧾 Settlement','stl.range':'📅 Date Range','stl.view':'🔍 View',
+    'stl.revenue':'TOTAL SALES REVENUE','stl.expenses':'TOTAL EXPENSES',
+    'stl.profit':'NET PROFIT','stl.loss':'NET LOSS',
+    'stl.byCat':'Expenses by Category','stl.rec':'record','stl.recs':'records',
+    // Reconciliation page
+    'rec.title':'🔍 Kitchen vs POS Audit','rec.date':'📅 Date','rec.view':'🔍 View',
+    'rec.tableTitle':'📊 Item Reconciliation',
+    'rec.item':'Item','rec.prepared':'Prepared','rec.sold':'Sold',
+    'rec.variance':'Variance','rec.status':'Status',
+    'rec.matched':'✅ Matched','rec.leftover':'📦 Leftover','rec.critical':'🚨 CRITICAL',
+    'rec.alertTitle':'discrepancy(s) detected!',
+    'rec.alertSub':'Items sold exceeded what was prepared — investigate immediately',
+    'rec.unmatchedTitle':'⚠️ Quick Sales With No Kitchen Record',
+    'rec.unmatchedDesc':'These items were sold via Quick Sale but have no matching Chef preparation log — possible typo or unrecorded production',
+    'rec.qty':'Qty','rec.noData':'No data to reconcile for this date',
   },
   sw: {
     // Navigation
@@ -751,6 +782,37 @@ const TRANSLATIONS = {
     // Empty states
     'empty.noOrders':'Hakuna maagizo hapa','empty.noItems':'Hakuna vipengee',
     'empty.noStaff':'Hakuna wafanyakazi',
+    // Nav — new screens
+    'nav.expenses':'Gharama','nav.settlement':'Hesabu','nav.reconciliation':'Rekodi',
+    // Expenses page
+    'exp.title':'💸 Gharama za Uendeshaji','exp.addNew':'➕ Ongeza Gharama Mpya',
+    'exp.selectCat':'-- Chagua Aina --','exp.descPH':'Maelezo (si lazima)',
+    'exp.amtPH':'Kiasi (TZS)','exp.saveBtn':'💾 Hifadhi Gharama',
+    'exp.total':'Jumla ya Gharama','exp.none':'Hakuna gharama zilizorekodiwa',
+    'exp.loading':'Inapakia…','exp.saving':'Inahifadhi…','exp.saved':'✅ Gharama imehifadhiwa!',
+    'exp.errCat':'Tafadhali chagua aina ya gharama','exp.errAmt':'Weka kiasi sahihi',
+    'exp.delConfirm':'Futa gharama hii?','exp.listTitle':'📋 Gharama',
+    'exp.todayFilter':'Chagua tarehe',
+    'expcat.wages':'Mishahara ya Wafanyakazi','expcat.electricity':'Umeme',
+    'expcat.water':'Maji','expcat.gas':'Gesi / Makaa','expcat.supplies':'Manunuzi ya Vifaa',
+    'expcat.transport':'Nauli','expcat.maintenance':'Matengenezo',
+    'expcat.rent':'Pango','expcat.other':'Nyingine',
+    // Settlement page
+    'stl.title':'🧾 Hesabu ya Siku','stl.range':'📅 Chagua Kipindi','stl.view':'🔍 Angalia',
+    'stl.revenue':'JUMLA YA MAUZO','stl.expenses':'JUMLA YA GHARAMA',
+    'stl.profit':'FAIDA HALISI','stl.loss':'HASARA HALISI',
+    'stl.byCat':'Gharama kwa Aina','stl.rec':'rekodi','stl.recs':'rekodi',
+    // Reconciliation page
+    'rec.title':'🔍 Rekodi ya Jiko ↔ POS','rec.date':'📅 Tarehe','rec.view':'🔍 Angalia',
+    'rec.tableTitle':'📊 Kulinganisha kwa Bidhaa',
+    'rec.item':'Bidhaa','rec.prepared':'Ilipikwa','rec.sold':'Iliuzwa',
+    'rec.variance':'Tofauti','rec.status':'Hali',
+    'rec.matched':'✅ Imelingana','rec.leftover':'📦 Imesalia','rec.critical':'🚨 TATIZO',
+    'rec.alertTitle':'tofauti zimegunduliwa!',
+    'rec.alertSub':'Chakula kiliuzwa zaidi ya kilichopikwa — angalia haraka',
+    'rec.unmatchedTitle':'⚠️ Quick Sale bila Rekodi ya Jiko',
+    'rec.unmatchedDesc':'Bidhaa hizi ziliuzwa bila rekodi ya Mpishi — makosa ya jina au ulaghai',
+    'rec.qty':'Idadi','rec.noData':'Hakuna data ya kulinganisha siku hii',
   }
 };
 let LANG = localStorage.getItem('pos_lang') || 'en';
@@ -983,9 +1045,9 @@ function getNavs(){
       {p:'pg-admin-menu',    i:'🍽️', l:t('nav.menu')},
       {p:'pg-admin-staff',   i:'👥', l:t('nav.staff')},
       {p:'pg-admin-reports', i:'📄', l:t('nav.reports')},
-      {p:'pg-expenses',      i:'💸', l:'Gharama'},
-      {p:'pg-settlement',    i:'🧾', l:'Hesabu'},
-      {p:'pg-reconciliation',i:'🔍', l:'Rekodi'},
+      {p:'pg-expenses',      i:'💸', l:t('nav.expenses')},
+      {p:'pg-settlement',    i:'🧾', l:t('nav.settlement')},
+      {p:'pg-reconciliation',i:'🔍', l:t('nav.reconciliation')},
       {p:'pg-admin-roles',   i:'📊', l:t('nav.roleStats')},
       {p:'pg-attendance',    i:'🕒', l:t('nav.attendance')},
       {p:'pg-admin-settings',i:'⚙️', l:t('nav.settings')},
@@ -997,8 +1059,8 @@ function getNavs(){
       {p:'pg-cashier-avail',  i:'📦', l:t('nav.foodStock')},
       {p:'pg-cashier-waiters',i:'👥', l:t('nav.waiterStatus')},
       {p:'pg-cashier-trends', i:'📈', l:t('nav.waiterTrends')},
-      {p:'pg-expenses',       i:'💸', l:'Gharama'},
-      {p:'pg-settlement',     i:'🧾', l:'Hesabu'},
+      {p:'pg-expenses',       i:'💸', l:t('nav.expenses')},
+      {p:'pg-settlement',     i:'🧾', l:t('nav.settlement')},
       {p:'pg-attendance',     i:'🕒', l:t('nav.attendance')},
       chatItem,
     ],
@@ -2530,24 +2592,28 @@ document.addEventListener('DOMContentLoaded',async()=>{
 // ══════════════════════════════════════════════════════════════
 // EXPENSES — add & list operational costs (Admin + Cashier)
 // ══════════════════════════════════════════════════════════════
-const EXPENSE_CATS=['Staff Wages','Electricity','Water','Gas / Charcoal','Supplies Purchase','Transport','Maintenance','Rent','Other'];
+const EXP_CAT_KEYS=['expcat.wages','expcat.electricity','expcat.water','expcat.gas',
+  'expcat.supplies','expcat.transport','expcat.maintenance','expcat.rent','expcat.other'];
 async function renderExpenses(){
   const el=document.getElementById('pg-expenses');
-  el.innerHTML=`<div class="page-hd flex-b"><div class="page-title">💸 Operational Expenses</div></div>
+  el.innerHTML=`<div class="page-hd flex-b"><div class="page-title">${t('exp.title')}</div></div>
   <div style="padding:14px;max-width:700px;margin:0 auto">
     <div class="card mb-16">
-      <div class="card-hd"><span class="card-hd-title">➕ Add New Expense</span></div>
+      <div class="card-hd"><span class="card-hd-title">${t('exp.addNew')}</span></div>
       <div class="card-bd" style="display:grid;gap:10px">
-        <select class="select" id="exp-cat"><option value="">-- Select Category --</option>${EXPENSE_CATS.map(c=>`<option>${c}</option>`).join('')}</select>
-        <input class="input" id="exp-desc" placeholder="Description (optional)">
-        <input class="input" type="number" id="exp-amt" placeholder="Amount (TZS)" min="1">
-        <button class="btn btn-gold btn-block" onclick="submitExpense()">💾 Save Expense</button>
+        <select class="select" id="exp-cat">
+          <option value="">${t('exp.selectCat')}</option>
+          ${EXP_CAT_KEYS.map(k=>`<option value="${t(k)}">${t(k)}</option>`).join('')}
+        </select>
+        <input class="input" id="exp-desc" placeholder="${t('exp.descPH')}">
+        <input class="input" type="number" id="exp-amt" placeholder="${t('exp.amtPH')}" min="1">
+        <button class="btn btn-gold btn-block" onclick="submitExpense()">${t('exp.saveBtn')}</button>
         <div id="exp-msg" style="text-align:center;font-size:.85rem"></div>
       </div>
     </div>
     <div class="card">
       <div class="card-hd flex-b">
-        <span class="card-hd-title">📋 Today's Expenses</span>
+        <span class="card-hd-title">${t('exp.listTitle')}</span>
         <div class="flex gap-8 ai-c">
           <input class="input" type="date" id="exp-from" style="width:135px">
           <input class="input" type="date" id="exp-to" style="width:135px">
@@ -2564,15 +2630,15 @@ async function renderExpenses(){
 }
 async function loadExpenses(){
   const f=document.getElementById('exp-from').value;
-  const t=document.getElementById('exp-to').value;
+  const tv=document.getElementById('exp-to').value;
   const el=document.getElementById('exp-list');
-  el.innerHTML='<div style="text-align:center;padding:20px;color:var(--gray)">Loading…</div>';
+  el.innerHTML=`<div style="text-align:center;padding:20px;color:var(--gray)">${t('exp.loading')}</div>`;
   try{
-    const d=await API.apiFetch(`/api/expenses?from=${f}&to=${t}`);
-    if(!d.expenses||!d.expenses.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--gray)">No expenses recorded for this period</div>';return;}
+    const d=await API.apiFetch(`/api/expenses?from=${f}&to=${tv}`);
+    if(!d.expenses||!d.expenses.length){el.innerHTML=`<div style="text-align:center;padding:20px;color:var(--gray)">${t('exp.none')}</div>`;return;}
     el.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:10px 14px;background:rgba(212,175,55,.08);border-radius:8px">
-        <span style="font-weight:700;color:var(--gold)">Total Expenses</span>
+        <span style="font-weight:700;color:var(--gold)">${t('exp.total')}</span>
         <span style="font-weight:800;font-size:1.1rem;color:#EF9A9A">${fmtTZS(d.total)}</span>
       </div>
       ${d.expenses.map(e=>`
@@ -2587,36 +2653,167 @@ async function loadExpenses(){
           ${SESSION.role==='Admin'?`<button class="btn btn-danger btn-sm" onclick="deleteExpense('${e.id}')">🗑️</button>`:''}
         </div>
       </div>`).join('')}`;
-  }catch(err){el.innerHTML=`<div style="color:#EF9A9A;padding:14px">Hitilafu: ${err.message}</div>`;}
+  }catch(err){el.innerHTML=`<div style="color:#EF9A9A;padding:14px">Error: ${err.message}</div>`;}
 }
 async function submitExpense(){
   const cat=document.getElementById('exp-cat').value.trim();
   const desc=document.getElementById('exp-desc').value.trim();
   const amt=document.getElementById('exp-amt').value;
   const msg=document.getElementById('exp-msg');
-  if(!cat){msg.style.color='#EF9A9A';msg.textContent='Please select a category';return;}
-  if(!amt||Number(amt)<=0){msg.style.color='#EF9A9A';msg.textContent='Please enter a valid amount';return;}
-  msg.style.color='var(--gray2)';msg.textContent='Saving…';
+  if(!cat){msg.style.color='#EF9A9A';msg.textContent=t('exp.errCat');return;}
+  if(!amt||Number(amt)<=0){msg.style.color='#EF9A9A';msg.textContent=t('exp.errAmt');return;}
+  msg.style.color='var(--gray2)';msg.textContent=t('exp.saving');
   try{
     await API.apiFetch('/api/expenses',{method:'POST',body:JSON.stringify({category:cat,description:desc,amount:Number(amt)})});
     document.getElementById('exp-cat').value='';
     document.getElementById('exp-desc').value='';
     document.getElementById('exp-amt').value='';
-    msg.style.color='#69F0AE';msg.textContent='✅ Expense saved!';
+    msg.style.color='#69F0AE';msg.textContent=t('exp.saved');
     setTimeout(()=>{msg.textContent='';},2500);
     await loadExpenses();
   }catch(err){msg.style.color='#EF9A9A';msg.textContent='Error: '+err.message;}
 }
 async function deleteExpense(id){
-  if(!confirm('Delete this expense?'))return;
+  if(!confirm(t('exp.delConfirm')))return;
   try{await API.apiFetch(`/api/expenses/${id}`,{method:'DELETE'});await loadExpenses();}
   catch(err){alert('Error: '+err.message);}
 }
 
 // ══════════════════════════════════════════════════════════════
-// SETTLEMENT — revenue minus expenses = net balance (Admin + Cashier)
+// SETTLEMENT — revenue minus expenses = net balance
 // ══════════════════════════════════════════════════════════════
 async function renderSettlement(){
+  const el=document.getElementById('pg-settlement');
+  const today=new Date().toISOString().slice(0,10);
+  el.innerHTML=`
+  <div class="page-hd flex-b"><div class="page-title">${t('stl.title')}</div></div>
+  <div style="padding:14px;max-width:700px;margin:0 auto">
+    <div class="card mb-16">
+      <div class="card-hd flex-b">
+        <span class="card-hd-title">${t('stl.range')}</span>
+        <div class="flex gap-8 ai-c">
+          <input class="input" type="date" id="stl-from" value="${today}" style="width:135px">
+          <input class="input" type="date" id="stl-to" value="${today}" style="width:135px">
+          <button class="btn btn-gold btn-sm" onclick="loadSettlement()">${t('stl.view')}</button>
+        </div>
+      </div>
+    </div>
+    <div id="stl-view"></div>
+  </div>`;
+  await loadSettlement();
+}
+async function loadSettlement(){
+  const f=document.getElementById('stl-from').value;
+  const tv=document.getElementById('stl-to').value;
+  const el=document.getElementById('stl-view');
+  el.innerHTML=`<div style="text-align:center;padding:30px;color:var(--gray)">${t('exp.loading')}</div>`;
+  try{
+    const d=await API.apiFetch(`/api/settlement?from=${f}&to=${tv}`);
+    const isProfit=d.net_balance>=0;
+    el.innerHTML=`
+      <div style="display:grid;gap:12px">
+        <div class="card">
+          <div class="card-bd" style="display:grid;gap:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(105,240,174,.07);border-radius:8px;border:1px solid rgba(105,240,174,.2)">
+              <span style="font-weight:700">💰 ${t('stl.revenue')}</span>
+              <span style="font-weight:800;color:#69F0AE;font-size:1.1rem">${fmtTZS(d.revenue)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(239,154,154,.07);border-radius:8px;border:1px solid rgba(239,154,154,.2)">
+              <span style="font-weight:700">💸 ${t('stl.expenses')}</span>
+              <span style="font-weight:800;color:#EF9A9A;font-size:1.1rem">${fmtTZS(d.expenses)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px;border-radius:10px;border:2px solid ${isProfit?'rgba(105,240,174,.5)':'rgba(239,154,154,.5)'};background:${isProfit?'rgba(105,240,174,.1)':'rgba(239,154,154,.1)'}">
+              <span style="font-weight:800;font-size:1.1rem">${isProfit?'✅ '+t('stl.profit'):'⚠️ '+t('stl.loss')}</span>
+              <span style="font-weight:800;font-size:1.4rem;color:${isProfit?'#69F0AE':'#EF9A9A'}">${fmtTZS(d.net_balance)}</span>
+            </div>
+          </div>
+        </div>
+        ${d.expense_breakdown&&d.expense_breakdown.length?`
+        <div class="card">
+          <div class="card-hd"><span class="card-hd-title">📂 ${t('stl.byCat')}</span></div>
+          <div class="card-bd" style="display:grid;gap:8px">
+            ${d.expense_breakdown.map(c=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+              <div>
+                <span style="font-weight:700">${c.category}</span>
+                <span style="margin-left:8px;font-size:.78rem;color:var(--gray2)">(${c.count} ${c.count===1?t('stl.rec'):t('stl.recs')})</span>
+              </div>
+              <span style="color:#EF9A9A;font-weight:700">${fmtTZS(c.total)}</span>
+            </div>`).join('')}
+          </div>
+        </div>`:''}
+      </div>`;
+  }catch(err){el.innerHTML=`<div style="color:#EF9A9A;padding:14px">Error: ${err.message}</div>`;}
+}
+
+// ══════════════════════════════════════════════════════════════
+// RECONCILIATION — Chef prepared vs Cashier Quick Sale (Admin only)
+// ══════════════════════════════════════════════════════════════
+async function renderReconciliation(){
+  const el=document.getElementById('pg-reconciliation');
+  const today=new Date().toISOString().slice(0,10);
+  el.innerHTML=`
+  <div class="page-hd flex-b"><div class="page-title">${t('rec.title')}</div></div>
+  <div style="padding:14px;max-width:700px;margin:0 auto">
+    <div class="card mb-16">
+      <div class="card-hd flex-b">
+        <span class="card-hd-title">${t('rec.date')}</span>
+        <div class="flex gap-8 ai-c">
+          <input class="input" type="date" id="rec-date" value="${today}" style="width:155px">
+          <button class="btn btn-gold btn-sm" onclick="loadReconciliation()">${t('rec.view')}</button>
+        </div>
+      </div>
+    </div>
+    <div id="rec-view"></div>
+  </div>`;
+  await loadReconciliation();
+}
+async function loadReconciliation(){
+  const date=document.getElementById('rec-date').value;
+  const el=document.getElementById('rec-view');
+  el.innerHTML=`<div style="text-align:center;padding:30px;color:var(--gray)">${t('exp.loading')}</div>`;
+  try{
+    const d=await API.apiFetch(`/api/reconciliation?date=${date}`);
+    if(!d.rows.length&&!d.unmatched_quick_sale_items.length){
+      el.innerHTML=`<div style="text-align:center;padding:30px;color:var(--gray)">${t('rec.noData')}</div>`;return;
+    }
+    el.innerHTML=`
+      ${d.critical_count>0?`
+      <div style="background:rgba(239,154,154,.15);border:2px solid #EF9A9A;border-radius:10px;padding:14px;margin-bottom:14px;text-align:center">
+        <div style="font-size:1.4rem">🚨</div>
+        <div style="font-weight:800;color:#EF9A9A;font-size:1rem">${d.critical_count} ${t('rec.alertTitle')}</div>
+        <div style="font-size:.84rem;color:var(--gray2);margin-top:4px">${t('rec.alertSub')}</div>
+      </div>`:''}
+      <div class="card mb-12">
+        <div class="card-hd"><span class="card-hd-title">${t('rec.tableTitle')}</span></div>
+        <div class="card-bd" style="display:grid;gap:2px">
+          <div style="display:grid;grid-template-columns:1fr 80px 80px 80px 90px;gap:8px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:.75rem;color:var(--gray);font-weight:700;text-transform:uppercase">
+            <span>${t('rec.item')}</span><span style="text-align:center">${t('rec.prepared')}</span><span style="text-align:center">${t('rec.sold')}</span><span style="text-align:center">${t('rec.variance')}</span><span style="text-align:center">${t('rec.status')}</span>
+          </div>
+          ${d.rows.map(r=>`
+          <div style="display:grid;grid-template-columns:1fr 80px 80px 80px 90px;gap:8px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05);align-items:center">
+            <span style="font-weight:700">${r.icon||'🍽️'} ${r.item_name}</span>
+            <span style="text-align:center;color:var(--gray2)">${r.prepared_qty}</span>
+            <span style="text-align:center;color:var(--gray2)">${r.quick_sold_qty}</span>
+            <span style="text-align:center;font-weight:700;color:${r.variance>0?'#EF9A9A':r.variance<0?'#FFCC80':'#69F0AE'}">${r.variance>0?'+':''}${r.variance}</span>
+            <span style="text-align:center;font-size:.75rem;font-weight:700;color:${r.status==='critical'?'#EF9A9A':r.status==='leftover'?'#FFCC80':'#69F0AE'}">${t('rec.'+r.status)}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+      ${d.unmatched_quick_sale_items.length?`
+      <div class="card">
+        <div class="card-hd"><span class="card-hd-title" style="color:#FFCC80">${t('rec.unmatchedTitle')}</span></div>
+        <div class="card-bd">
+          <div style="font-size:.82rem;color:var(--gray2);margin-bottom:10px">${t('rec.unmatchedDesc')}</div>
+          ${d.unmatched_quick_sale_items.map(u=>`
+          <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+            <span style="color:#FFCC80;font-weight:700">${u.item_name}</span>
+            <span style="color:var(--gray2)">${t('rec.qty')}: ${u.qty}</span>
+          </div>`).join('')}
+        </div>
+      </div>`:''}`;
+  }catch(err){el.innerHTML=`<div style="color:#EF9A9A;padding:14px">Error: ${err.message}</div>`;}
+}
   const el=document.getElementById('pg-settlement');
   const today=new Date().toISOString().slice(0,10);
   el.innerHTML=`
