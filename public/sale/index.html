@@ -81,14 +81,16 @@
 <div class="wrap" id="main-view" style="display:none">
   <div class="topbar">
     <h1 style="margin:0">💰 Ottoman Bey POS</h1>
-    <button class="logout" onclick="logout()">Logout (<span id="who"></span>)</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="lang-btn" onclick="toggleSaleLang()" style="background:rgba(212,175,55,.1);border:1px solid rgba(212,175,55,.25);color:#d4af37;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:700;font-family:inherit">SW</button>
+      <button id="logout-btn" class="logout" onclick="logout()"><span id="logout-label">Logout</span> (<span id="who"></span>)</button>
+    </div>
   </div>
 
   <div class="stats-row">
-    <div class="stat"><div class="stat-v" id="st-orders">0</div><div class="stat-l">Sales Today</div></div>
-    <div class="stat"><div class="stat-v" id="st-revenue">TZS 0</div><div class="stat-l">Revenue Today</div></div>
+    <div class="stat"><div class="stat-v" id="st-orders">0</div><div class="stat-l" id="stat-lbl-orders">Sales Today</div></div>
+    <div class="stat"><div class="stat-v" id="st-revenue">TZS 0</div><div class="stat-l" id="stat-lbl-revenue">Revenue Today</div></div>
   </div>
-
   <!-- Tab Navigation -->
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('sale')">💰 Sale</button>
@@ -100,29 +102,29 @@
   <div class="section active" id="tab-sale">
     <div id="entry-form">
       <div class="card">
-        <div class="cd">1. Enter Food Item</div>
+        <div class="cd" id="lbl-item">1. Enter Food Item</div>
         <div class="row3">
-          <div><span class="lbl">Item Name</span><input class="input" id="in-name" placeholder="e.g. Chips Mayai"></div>
-          <div><span class="lbl">Qty</span><input class="input" id="in-qty" type="number" min="1" value="1" inputmode="numeric"></div>
-          <div><span class="lbl">Price</span><input class="input" id="in-price" type="number" min="0" placeholder="3000" inputmode="numeric"></div>
+          <div><span class="lbl" id="lbl-itemName">Item Name</span><input class="input" id="in-name" placeholder="e.g. Chips Mayai"></div>
+          <div><span class="lbl" id="lbl-qty">Qty</span><input class="input" id="in-qty" type="number" min="1" value="1" inputmode="numeric"></div>
+          <div><span class="lbl" id="lbl-price">Price</span><input class="input" id="in-price" type="number" min="0" placeholder="3000" inputmode="numeric"></div>
         </div>
         <div class="err" id="in-err"></div>
-        <button class="btn btn-dark" onclick="addLine()">➕ Add to Order</button>
+        <button class="btn btn-dark" id="lbl-addToOrder" onclick="addLine()">➕ Add to Order</button>
       </div>
 
       <div class="card" id="lines-card" style="display:none">
-        <div class="cd">Current Order</div>
+        <div class="cd" id="lbl-currentOrder">Current Order</div>
         <div id="lines-list"></div>
-        <div class="order-total-bar"><span>TOTAL</span><span id="order-total" style="color:var(--gold)">TZS 0</span></div>
+        <div class="order-total-bar"><span id="lbl-total">TOTAL</span><span id="order-total" style="color:var(--gold)">TZS 0</span></div>
       </div>
 
       <div class="card" id="waiter-card" style="display:none">
-        <div class="cd">2. Assign Waiter</div>
+        <div class="cd" id="lbl-waiter">2. Assign Waiter</div>
         <div class="waiter-grid" id="waiter-grid"><div class="spinner"></div></div>
       </div>
 
       <div class="card" id="pay-card" style="display:none">
-        <div class="cd">3. Payment Method</div>
+        <div class="cd" id="lbl-payMethod">3. Payment Method</div>
         <div class="pm-grid" style="margin-bottom:12px">
           <button class="pm-btn active" onclick="selPM('cash',this)">💵 Cash</button>
           <button class="pm-btn" onclick="selPM('mpesa',this)">📱 M-Pesa</button>
@@ -131,12 +133,12 @@
           <button class="pm-btn" onclick="selPM('card',this)">💳 Card</button>
           <button class="pm-btn" onclick="selPM('bank',this)">🏦 Bank</button>
         </div>
-        <button class="btn btn-green" onclick="completeSale()" id="sale-btn">✅ Complete Sale</button>
+        <button class="btn btn-green" onclick="completeSale()" id="sale-btn"><span id="lbl-complete">✅ Complete Sale</span></button>
       </div>
     </div>
 
     <div class="card">
-      <div class="cd">🧾 Today's Sales</div>
+      <div class="cd" id="lbl-todaySales">🧾 Today's Sales</div>
       <div id="today-log"><div class="spinner"></div></div>
     </div>
   </div>
@@ -144,28 +146,28 @@
   <!-- ── EXPENSES TAB ── -->
   <div class="section" id="tab-expenses">
     <div class="card">
-      <div class="cd">➕ Record New Expense</div>
+      <div class="cd" id="lbl-exp-addNew">➕ Add New Expense</div>
       <select class="input" id="exp-cat" style="margin-bottom:10px">
         <option value="">-- Select Category --</option>
-        <option>Staff Wages</option>
-        <option>Electricity</option>
-        <option>Water</option>
-        <option>Gas / Charcoal</option>
-        <option>Supplies Purchase</option>
-        <option>Transport</option>
-        <option>Maintenance</option>
-        <option>Rent</option>
-        <option>Other</option>
+        <option value="Staff Wages">Staff Wages</option>
+        <option value="Electricity">Electricity</option>
+        <option value="Water">Water</option>
+        <option value="Gas / Charcoal">Gas / Charcoal</option>
+        <option value="Supplies Purchase">Supplies Purchase</option>
+        <option value="Transport">Transport</option>
+        <option value="Maintenance">Maintenance</option>
+        <option value="Rent">Rent</option>
+        <option value="Other">Other</option>
       </select>
       <input class="input" id="exp-desc" placeholder="Description (optional)">
       <input class="input" type="number" id="exp-amt" placeholder="Amount (TZS)" min="1" inputmode="numeric">
-      <button class="btn btn-gold" onclick="submitExpense()">💾 Save Expense</button>
+      <button class="btn btn-gold" id="lbl-exp-saveBtn" onclick="submitExpense()">💾 Save Expense</button>
       <div id="exp-msg" style="text-align:center;font-size:.85rem;margin-top:8px;min-height:18px"></div>
     </div>
 
     <div class="card">
       <div class="cd" style="display:flex;justify-content:space-between;align-items:center">
-        <span>📋 Today's Expenses</span>
+        <span id="lbl-exp-listTitle">📋 Expenses</span>
         <div style="display:flex;gap:6px">
           <input type="date" id="exp-from" class="input" style="width:130px;padding:6px;margin:0">
           <input type="date" id="exp-to" class="input" style="width:130px;padding:6px;margin:0">
@@ -198,7 +200,120 @@
 const API_BASE='';
 const DRAFT_KEY='sale_draft';
 let TOKEN=null, SESSION=null;
-let LINES=[]; // {name, qty, price}
+let SLANG=localStorage.getItem('pos_lang')||'en';
+const STRANS={
+  en:{
+    'title':'Ottoman Bey POS','logout':'Logout',
+    'salesToday':'Sales Today','revenueToday':'Revenue Today',
+    'tabSale':'💰 Sale','tabExp':'💸 Expenses','tabStl':'🧾 Settlement',
+    'enterItem':'1. Enter Food Item','itemName':'Item Name',
+    'itemPH':'e.g. Chips Mayai','qty':'Qty','price':'Price',
+    'addToOrder':'➕ Add to Order','currentOrder':'Current Order',
+    'total':'TOTAL','assignWaiter':'2. Assign Waiter',
+    'payMethod':'3. Payment Method','completeSale':'✅ Complete Sale',
+    'todaySales':'🧾 Today\'s Sales','noSales':'No sales yet today',
+    'langBtn':'SW',
+    // Expenses
+    'exp.addNew':'➕ Add New Expense','exp.selectCat':'-- Select Category --',
+    'exp.descPH':'Description (optional)','exp.amtPH':'Amount (TZS)',
+    'exp.saveBtn':'💾 Save Expense','exp.total':'Total Expenses',
+    'exp.none':'No expenses recorded for this period',
+    'exp.loading':'Loading…','exp.saving':'Saving…','exp.saved':'✅ Expense saved!',
+    'exp.errCat':'Please select a category','exp.errAmt':'Please enter a valid amount',
+    'exp.listTitle':'📋 Expenses',
+    'expcat.wages':'Staff Wages','expcat.electricity':'Electricity','expcat.water':'Water',
+    'expcat.gas':'Gas / Charcoal','expcat.supplies':'Supplies Purchase',
+    'expcat.transport':'Transport','expcat.maintenance':'Maintenance',
+    'expcat.rent':'Rent','expcat.other':'Other',
+    // Settlement
+    'stl.revenue':'TOTAL SALES REVENUE','stl.expenses':'TOTAL EXPENSES',
+    'stl.profit':'NET PROFIT','stl.loss':'NET LOSS',
+    'stl.byCat':'Expenses by Category','stl.rec':'record','stl.recs':'records',
+    'stl.loading':'Loading…',
+  },
+  sw:{
+    'title':'Ottoman Bey POS','logout':'Toka',
+    'salesToday':'Mauzo Leo','revenueToday':'Mapato Leo',
+    'tabSale':'💰 Mauzo','tabExp':'💸 Gharama','tabStl':'🧾 Hesabu',
+    'enterItem':'1. Andika Chakula','itemName':'Jina la Chakula',
+    'itemPH':'mf. Chips Mayai','qty':'Idadi','price':'Bei',
+    'addToOrder':'➕ Ongeza kwenye Order','currentOrder':'Order ya Sasa',
+    'total':'JUMLA','assignWaiter':'2. Nani Ameuza',
+    'payMethod':'3. Njia ya Malipo','completeSale':'✅ Kamilisha Mauzo',
+    'todaySales':'🧾 Mauzo ya Leo','noSales':'Bado hakuna mauzo leo',
+    'langBtn':'EN',
+    // Gharama
+    'exp.addNew':'➕ Ongeza Gharama Mpya','exp.selectCat':'-- Chagua Aina --',
+    'exp.descPH':'Maelezo (si lazima)','exp.amtPH':'Kiasi (TZS)',
+    'exp.saveBtn':'💾 Hifadhi Gharama','exp.total':'Jumla ya Gharama',
+    'exp.none':'Hakuna gharama zilizorekodiwa',
+    'exp.loading':'Inapakia…','exp.saving':'Inahifadhi…','exp.saved':'✅ Gharama imehifadhiwa!',
+    'exp.errCat':'Tafadhali chagua aina ya gharama','exp.errAmt':'Weka kiasi sahihi',
+    'exp.listTitle':'📋 Gharama',
+    'expcat.wages':'Mishahara','expcat.electricity':'Umeme','expcat.water':'Maji',
+    'expcat.gas':'Gesi / Makaa','expcat.supplies':'Manunuzi ya Vifaa',
+    'expcat.transport':'Nauli','expcat.maintenance':'Matengenezo',
+    'expcat.rent':'Pango','expcat.other':'Nyingine',
+    // Hesabu
+    'stl.revenue':'JUMLA YA MAUZO','stl.expenses':'JUMLA YA GHARAMA',
+    'stl.profit':'FAIDA HALISI','stl.loss':'HASARA HALISI',
+    'stl.byCat':'Gharama kwa Aina','stl.rec':'rekodi','stl.recs':'rekodi',
+    'stl.loading':'Inapakia…',
+  }
+};
+function st(key){return STRANS[SLANG][key]||STRANS['en'][key]||key;}
+function toggleSaleLang(){
+  SLANG=SLANG==='en'?'sw':'en';
+  localStorage.setItem('pos_lang',SLANG);
+  applyI18n();
+  // re-render whichever tab is open
+  const active=document.querySelector('.section.active');
+  if(active){
+    if(active.id==='tab-expenses') loadExpenses();
+    if(active.id==='tab-settlement') loadSettlement();
+    // sale tab labels refresh via applyI18n
+  }
+}
+const EXP_CAT_KEYS_SALE=['expcat.wages','expcat.electricity','expcat.water','expcat.gas',
+  'expcat.supplies','expcat.transport','expcat.maintenance','expcat.rent','expcat.other'];
+function applyI18n(){
+  // topbar
+  const langBtn=document.getElementById('lang-btn');
+  if(langBtn) langBtn.textContent=st('langBtn');
+  const whoEl=document.getElementById('logout-btn');
+  if(whoEl) whoEl.firstChild&&(whoEl.childNodes[0].textContent=st('logout')+' (');
+  // stats
+  const sl=document.getElementById('stat-lbl-orders');
+  const rl=document.getElementById('stat-lbl-revenue');
+  if(sl) sl.textContent=st('salesToday');
+  if(rl) rl.textContent=st('revenueToday');
+  // tabs
+  const tabs=['tabSale','tabExp','tabStl'];
+  const tabBtns=document.querySelectorAll('.tab-btn');
+  tabBtns.forEach((b,i)=>{if(tabs[i]) b.textContent=st(tabs[i]);});
+  // sale form labels
+  const lblMap={
+    'lbl-item':st('enterItem'),'lbl-itemName':st('itemName'),'lbl-qty':st('qty'),
+    'lbl-price':st('price'),'lbl-addToOrder':st('addToOrder'),
+    'lbl-currentOrder':st('currentOrder'),'lbl-total':st('total'),
+    'lbl-waiter':st('assignWaiter'),'lbl-payMethod':st('payMethod'),
+    'lbl-complete':st('completeSale'),'lbl-todaySales':st('todaySales'),
+    'logout-label':st('logout'),
+    'lbl-exp-addNew':st('exp.addNew'),'lbl-exp-saveBtn':st('exp.saveBtn'),
+    'lbl-exp-listTitle':st('exp.listTitle'),
+  };
+  Object.entries(lblMap).forEach(([id,txt])=>{const e=document.getElementById(id);if(e)e.textContent=txt;});
+  const namePH=document.getElementById('in-name');
+  if(namePH) namePH.placeholder=st('itemPH');
+  // rebuild expense category dropdown if it exists
+  const expCat=document.getElementById('exp-cat');
+  if(expCat){
+    const curVal=expCat.value;
+    expCat.innerHTML=`<option value="">${st('exp.selectCat')}</option>`+
+      EXP_CAT_KEYS_SALE.map(k=>`<option value="${STRANS.en[k]}">${st(k)}</option>`).join('');
+    expCat.value=curVal;
+  }
+} // {name, qty, price}
 let WAITERS=[]; let SELECTED_WAITER=null;
 let PAY_METHOD='cash';
 
@@ -276,6 +391,7 @@ async function initApp(){
   document.getElementById('login-view').style.display='none';
   document.getElementById('main-view').style.display='block';
   document.getElementById('who').textContent=SESSION.name;
+  applyI18n();
   loadDraft();
   renderLines();
   document.querySelectorAll('.pm-btn').forEach(b=>b.classList.remove('active'));
@@ -392,6 +508,118 @@ function switchTab(name){
 
 // ── Expenses ─────────────────────────────────────────────────
 async function submitExpense(){
+  const cat=document.getElementById('exp-cat').value.trim();
+  const desc=document.getElementById('exp-desc').value.trim();
+  const amt=document.getElementById('exp-amt').value;
+  const msg=document.getElementById('exp-msg');
+  if(!cat){msg.style.color='var(--red)';msg.textContent=st('exp.errCat');return;}
+  if(!amt||Number(amt)<=0){msg.style.color='var(--red)';msg.textContent=st('exp.errAmt');return;}
+  msg.style.color='#c9b89a';msg.textContent=st('exp.saving');
+  try{
+    await api('/api/expenses',{method:'POST',body:JSON.stringify({category:cat,description:desc,amount:Number(amt)})});
+    document.getElementById('exp-cat').value='';
+    document.getElementById('exp-desc').value='';
+    document.getElementById('exp-amt').value='';
+    msg.style.color='var(--green)';msg.textContent=st('exp.saved');
+    setTimeout(()=>{msg.textContent='';},2500);
+    await loadExpenses();
+  }catch(e){msg.style.color='var(--red)';msg.textContent='Error: '+e.message;}
+}
+async function loadExpenses(){
+  const today=new Date().toISOString().slice(0,10);
+  const fromEl=document.getElementById('exp-from');
+  const toEl=document.getElementById('exp-to');
+  if(fromEl&&!fromEl.value) fromEl.value=today;
+  if(toEl&&!toEl.value) toEl.value=today;
+  const f=fromEl?fromEl.value:today;
+  const tv=toEl?toEl.value:today;
+  const el=document.getElementById('exp-list');
+  if(!el)return;
+  el.innerHTML=`<div style="text-align:center;padding:14px;color:#9a8870">${st('exp.loading')}</div>`;
+  try{
+    const d=await api(`/api/expenses?from=${f}&to=${tv}`);
+    if(!d.expenses||!d.expenses.length){
+      el.innerHTML=`<div style="text-align:center;padding:14px;color:#9a8870">${st('exp.none')}</div>`;return;
+    }
+    el.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(231,76,60,.1);border-radius:8px;margin-bottom:12px;border:1px solid rgba(231,76,60,.25)">
+        <span style="font-weight:700">${st('exp.total')}</span>
+        <span style="font-weight:800;color:var(--red)">${fmtTZS(d.total)}</span>
+      </div>
+      ${d.expenses.map(e=>`
+      <div class="exp-row">
+        <div>
+          <div class="exp-cat">${e.category}</div>
+          ${e.description?`<div class="exp-meta">${e.description}</div>`:''}
+          <div class="exp-meta">🕒 ${new Date(e.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · ${e.recorded_by_name}</div>
+        </div>
+        <span class="exp-amt">${fmtTZS(e.amount)}</span>
+      </div>`).join('')}`;
+  }catch(e){el.innerHTML=`<div style="color:var(--red);padding:10px">Error: ${e.message}</div>`;}
+}
+
+// ── Settlement ────────────────────────────────────────────────
+async function loadSettlement(){
+  const today=new Date().toISOString().slice(0,10);
+  const fromEl=document.getElementById('stl-from');
+  const toEl=document.getElementById('stl-to');
+  if(fromEl&&!fromEl.value) fromEl.value=today;
+  if(toEl&&!toEl.value) toEl.value=today;
+  const f=fromEl?fromEl.value:today;
+  const tv=toEl?toEl.value:today;
+  const el=document.getElementById('stl-view');
+  if(!el)return;
+  el.innerHTML=`<div style="text-align:center;padding:20px;color:#9a8870">${st('stl.loading')}</div>`;
+  try{
+    const d=await api(`/api/settlement?from=${f}&to=${tv}`);
+    const profit=d.net_balance>=0;
+    el.innerHTML=`
+      <div class="card stl-revenue">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:.75rem;color:#9a8870;margin-bottom:3px">${st('stl.revenue')}</div><div style="font-weight:800;font-size:1.2rem;color:var(--green)">${fmtTZS(d.revenue)}</div></div>
+          <span style="font-size:1.8rem">💰</span>
+        </div>
+      </div>
+      <div class="card stl-expense">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:.75rem;color:#9a8870;margin-bottom:3px">${st('stl.expenses')}</div><div style="font-weight:800;font-size:1.2rem;color:var(--red)">${fmtTZS(d.expenses)}</div></div>
+          <span style="font-size:1.8rem">💸</span>
+        </div>
+      </div>
+      <div class="card" style="border:2px solid ${profit?'rgba(46,204,113,.5)':'rgba(231,76,60,.5)'};background:${profit?'rgba(46,204,113,.07)':'rgba(231,76,60,.07)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:.75rem;color:#9a8870;margin-bottom:3px">${profit?st('stl.profit'):st('stl.loss')}</div>
+            <div style="font-weight:800;font-size:1.5rem;color:${profit?'var(--green)':'var(--red)'}">${fmtTZS(d.net_balance)}</div>
+          </div>
+          <span style="font-size:2rem">${profit?'✅':'⚠️'}</span>
+        </div>
+      </div>
+      ${d.expense_breakdown&&d.expense_breakdown.length?`
+      <div class="card">
+        <div class="cd">${st('stl.byCat')}</div>
+        ${d.expense_breakdown.map(c=>`
+        <div class="exp-row">
+          <div><div class="exp-cat">${c.category}</div><div class="exp-meta">${c.count} ${c.count===1?st('stl.rec'):st('stl.recs')}</div></div>
+          <span class="exp-amt">${fmtTZS(c.total)}</span>
+        </div>`).join('')}
+      </div>`:''}`;
+  }catch(e){el.innerHTML=`<div style="color:var(--red);padding:10px">Error: ${e.message}</div>`;}
+}
+
+// Auto-restore session for this browser tab only (sessionStorage, not
+// localStorage) — closing the tab/browser logs the cashier out, which is
+// safer on a shared till device.
+(function boot(){
+  const tv=sessionStorage.getItem('sale_token');
+  if(tv){
+    TOKEN=tv;
+    api('/api/me').then(d=>{SESSION=d.user;initApp();}).catch(()=>{sessionStorage.removeItem('sale_token');});
+  }
+})();
+</script>
+</body>
+</html>
   const cat=document.getElementById('exp-cat').value.trim();
   const desc=document.getElementById('exp-desc').value.trim();
   const amt=document.getElementById('exp-amt').value;
