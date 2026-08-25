@@ -5,10 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>Mauzo — Ottoman Bey</title>
 <style>
-  :root{
-    --gold:#D4AF37; --gold-d:#B8952E; --brown:#120B08; --brown2:#1F140D;
-    --green:#2ECC71; --red:#E74C3C; --card:#241811;
-  }
+  :root{--gold:#D4AF37;--gold-d:#B8952E;--brown:#120B08;--brown2:#1F140D;--green:#2ECC71;--red:#E74C3C;--card:#241811}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--brown);color:#f3e9d8;min-height:100vh}
   .wrap{max-width:520px;margin:0 auto;padding:16px 14px 40px}
@@ -37,20 +34,16 @@
   .wt-btn{padding:12px 8px;border-radius:10px;border:1px solid rgba(212,175,55,.3);background:#150E09;color:#f3e9d8;font-size:.88rem;font-weight:600;cursor:pointer;text-align:center}
   .wt-btn.active{background:var(--gold);color:#1a1206;border-color:var(--gold)}
   .pm-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .pm-btn{padding:10px 4px;border-radius:9px;border:1px solid rgba(212,175,55,.3);background:#150E09;color:#f3e9d8;font-size:.8rem;cursor:pointer}
+  .pm-btn.active{background:var(--gold);color:#1a1206;border-color:var(--gold);font-weight:700}
   .tab-bar{display:flex;gap:0;margin-bottom:14px;background:#150E09;border-radius:12px;padding:4px;border:1px solid rgba(212,175,55,.18)}
   .tab-btn{flex:1;padding:9px 4px;border:none;border-radius:9px;font-size:.78rem;font-weight:700;cursor:pointer;background:transparent;color:#c9b89a;transition:all .2s}
   .tab-btn.active{background:linear-gradient(135deg,var(--gold),var(--gold-d));color:#1a1206}
   .section{display:none}.section.active{display:block}
-  .stl-box{border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
-  .stl-revenue{background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.3)}
-  .stl-expense{background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3)}
-  .stl-net{border-radius:12px;padding:18px 16px;display:flex;justify-content:space-between;align-items:center;border:2px solid}
   .exp-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(212,175,55,.08)}
   .exp-cat{font-weight:700;font-size:.9rem}
   .exp-meta{font-size:.75rem;color:#9a8870;margin-top:2px}
   .exp-amt{font-weight:800;color:var(--red)}
-  .pm-btn{padding:10px 4px;border-radius:9px;border:1px solid rgba(212,175,55,.3);background:#150E09;color:#f3e9d8;font-size:.8rem;cursor:pointer}
-  .pm-btn.active{background:var(--gold);color:#1a1206;border-color:var(--gold);font-weight:700}
   .muted{color:#9a8a70;font-size:.8rem}
   .log-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(212,175,55,.08);font-size:.85rem}
   .log-row:last-child{border-bottom:none}
@@ -66,24 +59,25 @@
 </head>
 <body>
 
-<!-- ═══ LOGIN ═══ -->
+<!-- LOGIN -->
 <div class="wrap" id="login-view">
-  <h1>💰 Mauzo — Ottoman Bey</h1>
+  <h1>💰 Ottoman Bey POS</h1>
   <div class="card">
-    <input class="input" id="l-user" placeholder="Jina la mtumiaji" autocomplete="username">
-    <input class="input" id="l-pass" type="password" placeholder="Nenosiri" autocomplete="current-password">
+    <input class="input" id="l-user" placeholder="Username" autocomplete="username">
+    <input class="input" id="l-pass" type="password" placeholder="Password" autocomplete="current-password">
     <div class="err" id="l-err"></div>
-    <button class="btn btn-gold" onclick="login()" id="l-btn">🔐 Ingia</button>
+    <button class="btn btn-gold" onclick="login()" id="l-btn">🔐 Login</button>
   </div>
 </div>
 
-<!-- ═══ MAIN ═══ -->
+<!-- MAIN -->
 <div class="wrap" id="main-view" style="display:none">
+
   <div class="topbar">
     <h1 style="margin:0">💰 Ottoman Bey POS</h1>
     <div style="display:flex;gap:8px;align-items:center">
       <button id="lang-btn" onclick="toggleSaleLang()" style="background:rgba(212,175,55,.1);border:1px solid rgba(212,175,55,.25);color:#d4af37;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:700;font-family:inherit">SW</button>
-      <button id="logout-btn" class="logout" onclick="logout()"><span id="logout-label">Logout</span> (<span id="who"></span>)</button>
+      <button class="logout" onclick="logout()"><span id="logout-label">Logout</span> (<span id="who"></span>)</button>
     </div>
   </div>
 
@@ -91,50 +85,48 @@
     <div class="stat"><div class="stat-v" id="st-orders">0</div><div class="stat-l" id="stat-lbl-orders">Sales Today</div></div>
     <div class="stat"><div class="stat-v" id="st-revenue">TZS 0</div><div class="stat-l" id="stat-lbl-revenue">Revenue Today</div></div>
   </div>
-  <!-- Tab Navigation -->
+
   <div class="tab-bar">
-    <button class="tab-btn active" onclick="switchTab('sale')">💰 Sale</button>
-    <button class="tab-btn" onclick="switchTab('expenses')">💸 Expenses</button>
-    <button class="tab-btn" onclick="switchTab('settlement')">🧾 Settlement</button>
+    <button class="tab-btn active" id="tab-btn-sale" onclick="switchTab('sale',this)">💰 Sale</button>
+    <button class="tab-btn" id="tab-btn-expenses" onclick="switchTab('expenses',this)">💸 Expenses</button>
+    <button class="tab-btn" id="tab-btn-settlement" onclick="switchTab('settlement',this)">🧾 Settlement</button>
   </div>
 
-  <!-- ── SALES TAB ── -->
+  <!-- SALE TAB -->
   <div class="section active" id="tab-sale">
-    <div id="entry-form">
-      <div class="card">
-        <div class="cd" id="lbl-item">1. Enter Food Item</div>
-        <div class="row3">
-          <div><span class="lbl" id="lbl-itemName">Item Name</span><input class="input" id="in-name" placeholder="e.g. Chips Mayai"></div>
-          <div><span class="lbl" id="lbl-qty">Qty</span><input class="input" id="in-qty" type="number" min="1" value="1" inputmode="numeric"></div>
-          <div><span class="lbl" id="lbl-price">Price</span><input class="input" id="in-price" type="number" min="0" placeholder="3000" inputmode="numeric"></div>
-        </div>
-        <div class="err" id="in-err"></div>
-        <button class="btn btn-dark" id="lbl-addToOrder" onclick="addLine()">➕ Add to Order</button>
+    <div class="card">
+      <div class="cd" id="lbl-enterItem">1. Enter Food Item</div>
+      <div class="row3">
+        <div><span class="lbl" id="lbl-itemName">Item Name</span><input class="input" id="in-name" placeholder="e.g. Chips Mayai"></div>
+        <div><span class="lbl" id="lbl-qty">Qty</span><input class="input" id="in-qty" type="number" min="1" value="1" inputmode="numeric"></div>
+        <div><span class="lbl" id="lbl-price">Price</span><input class="input" id="in-price" type="number" min="0" placeholder="3000" inputmode="numeric"></div>
       </div>
+      <div class="err" id="in-err"></div>
+      <button class="btn btn-dark" id="lbl-addToOrder" onclick="addLine()">➕ Add to Order</button>
+    </div>
 
-      <div class="card" id="lines-card" style="display:none">
-        <div class="cd" id="lbl-currentOrder">Current Order</div>
-        <div id="lines-list"></div>
-        <div class="order-total-bar"><span id="lbl-total">TOTAL</span><span id="order-total" style="color:var(--gold)">TZS 0</span></div>
-      </div>
+    <div class="card" id="lines-card" style="display:none">
+      <div class="cd" id="lbl-currentOrder">Current Order</div>
+      <div id="lines-list"></div>
+      <div class="order-total-bar"><span id="lbl-total">TOTAL</span><span id="order-total" style="color:var(--gold)">TZS 0</span></div>
+    </div>
 
-      <div class="card" id="waiter-card" style="display:none">
-        <div class="cd" id="lbl-waiter">2. Assign Waiter</div>
-        <div class="waiter-grid" id="waiter-grid"><div class="spinner"></div></div>
-      </div>
+    <div class="card" id="waiter-card" style="display:none">
+      <div class="cd" id="lbl-waiter">2. Assign Waiter</div>
+      <div class="waiter-grid" id="waiter-grid"><div class="spinner"></div></div>
+    </div>
 
-      <div class="card" id="pay-card" style="display:none">
-        <div class="cd" id="lbl-payMethod">3. Payment Method</div>
-        <div class="pm-grid" style="margin-bottom:12px">
-          <button class="pm-btn active" onclick="selPM('cash',this)">💵 Cash</button>
-          <button class="pm-btn" onclick="selPM('mpesa',this)">📱 M-Pesa</button>
-          <button class="pm-btn" onclick="selPM('tigopesa',this)">📲 Tigo</button>
-          <button class="pm-btn" onclick="selPM('airtelmoney',this)">📶 Airtel</button>
-          <button class="pm-btn" onclick="selPM('card',this)">💳 Card</button>
-          <button class="pm-btn" onclick="selPM('bank',this)">🏦 Bank</button>
-        </div>
-        <button class="btn btn-green" onclick="completeSale()" id="sale-btn"><span id="lbl-complete">✅ Complete Sale</span></button>
+    <div class="card" id="pay-card" style="display:none">
+      <div class="cd" id="lbl-payMethod">3. Payment Method</div>
+      <div class="pm-grid" style="margin-bottom:12px">
+        <button class="pm-btn active" onclick="selPM('cash',this)">💵 Cash</button>
+        <button class="pm-btn" onclick="selPM('mpesa',this)">📱 M-Pesa</button>
+        <button class="pm-btn" onclick="selPM('tigopesa',this)">📲 Tigo</button>
+        <button class="pm-btn" onclick="selPM('airtelmoney',this)">📶 Airtel</button>
+        <button class="pm-btn" onclick="selPM('card',this)">💳 Card</button>
+        <button class="pm-btn" onclick="selPM('bank',this)">🏦 Bank</button>
       </div>
+      <button class="btn btn-green" onclick="completeSale()" id="sale-btn"><span id="lbl-complete">✅ Complete Sale</span></button>
     </div>
 
     <div class="card">
@@ -143,77 +135,60 @@
     </div>
   </div>
 
-  <!-- ── EXPENSES TAB ── -->
+  <!-- EXPENSES TAB -->
   <div class="section" id="tab-expenses">
     <div class="card">
       <div class="cd" id="lbl-exp-addNew">➕ Add New Expense</div>
-      <select class="input" id="exp-cat" style="margin-bottom:10px">
-        <option value="">-- Select Category --</option>
-        <option value="Staff Wages">Staff Wages</option>
-        <option value="Electricity">Electricity</option>
-        <option value="Water">Water</option>
-        <option value="Gas / Charcoal">Gas / Charcoal</option>
-        <option value="Supplies Purchase">Supplies Purchase</option>
-        <option value="Transport">Transport</option>
-        <option value="Maintenance">Maintenance</option>
-        <option value="Rent">Rent</option>
-        <option value="Other">Other</option>
-      </select>
-      <input class="input" id="exp-desc" placeholder="Description (optional)">
-      <input class="input" type="number" id="exp-amt" placeholder="Amount (TZS)" min="1" inputmode="numeric">
+      <select class="input" id="exp-cat" style="margin-bottom:10px"></select>
+      <input class="input" id="exp-desc">
+      <input class="input" type="number" id="exp-amt" min="1" inputmode="numeric">
       <button class="btn btn-gold" id="lbl-exp-saveBtn" onclick="submitExpense()">💾 Save Expense</button>
       <div id="exp-msg" style="text-align:center;font-size:.85rem;margin-top:8px;min-height:18px"></div>
     </div>
-
     <div class="card">
-      <div class="cd" style="display:flex;justify-content:space-between;align-items:center">
-        <span id="lbl-exp-listTitle">📋 Expenses</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span class="cd" id="lbl-exp-listTitle">📋 Expenses</span>
         <div style="display:flex;gap:6px">
           <input type="date" id="exp-from" class="input" style="width:130px;padding:6px;margin:0">
           <input type="date" id="exp-to" class="input" style="width:130px;padding:6px;margin:0">
-          <button class="btn btn-dark" style="padding:6px 10px;width:auto" onclick="loadExpenses()">🔍</button>
+          <button class="btn btn-dark" style="padding:6px 10px;width:auto;margin:0" onclick="loadExpenses()">🔍</button>
         </div>
       </div>
-      <div id="exp-list" style="margin-top:12px"></div>
+      <div id="exp-list"></div>
     </div>
   </div>
 
-  <!-- ── SETTLEMENT TAB ── -->
+  <!-- SETTLEMENT TAB -->
   <div class="section" id="tab-settlement">
     <div class="card">
-      <div class="cd" style="display:flex;justify-content:space-between;align-items:center">
-        <span>📅 Date Range</span>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="cd" id="lbl-stl-range">📅 Date Range</span>
         <div style="display:flex;gap:6px;align-items:center">
           <input type="date" id="stl-from" class="input" style="width:130px;padding:6px;margin:0">
           <input type="date" id="stl-to" class="input" style="width:130px;padding:6px;margin:0">
-          <button class="btn btn-gold" style="padding:6px 12px;width:auto" onclick="loadSettlement()">🔍</button>
+          <button class="btn btn-gold" id="lbl-stl-view" style="padding:6px 12px;width:auto;margin:0" onclick="loadSettlement()">🔍 View</button>
         </div>
       </div>
     </div>
     <div id="stl-view"></div>
   </div>
-</div>
+
+</div><!-- /main-view -->
 
 <div class="toast" id="toast"></div>
 
 <script>
-const API_BASE='';
-const DRAFT_KEY='sale_draft';
-let TOKEN=null, SESSION=null;
-let SLANG=localStorage.getItem('pos_lang')||'en';
-const STRANS={
+// ─── i18n ────────────────────────────────────────────────────
+var SLANG = localStorage.getItem('pos_lang') || 'en';
+var STRANS = {
   en:{
-    'title':'Ottoman Bey POS','logout':'Logout',
-    'salesToday':'Sales Today','revenueToday':'Revenue Today',
+    'logout':'Logout','salesToday':'Sales Today','revenueToday':'Revenue Today',
     'tabSale':'💰 Sale','tabExp':'💸 Expenses','tabStl':'🧾 Settlement',
-    'enterItem':'1. Enter Food Item','itemName':'Item Name',
-    'itemPH':'e.g. Chips Mayai','qty':'Qty','price':'Price',
-    'addToOrder':'➕ Add to Order','currentOrder':'Current Order',
-    'total':'TOTAL','assignWaiter':'2. Assign Waiter',
+    'enterItem':'1. Enter Food Item','itemName':'Item Name','itemPH':'e.g. Chips Mayai',
+    'qty':'Qty','price':'Price','addToOrder':'➕ Add to Order',
+    'currentOrder':'Current Order','total':'TOTAL','assignWaiter':'2. Assign Waiter',
     'payMethod':'3. Payment Method','completeSale':'✅ Complete Sale',
-    'todaySales':'🧾 Today\'s Sales','noSales':'No sales yet today',
-    'langBtn':'SW',
-    // Expenses
+    'todaySales':'🧾 Today\'s Sales','noSales':'No sales yet today','langBtn':'SW',
     'exp.addNew':'➕ Add New Expense','exp.selectCat':'-- Select Category --',
     'exp.descPH':'Description (optional)','exp.amtPH':'Amount (TZS)',
     'exp.saveBtn':'💾 Save Expense','exp.total':'Total Expenses',
@@ -225,24 +200,19 @@ const STRANS={
     'expcat.gas':'Gas / Charcoal','expcat.supplies':'Supplies Purchase',
     'expcat.transport':'Transport','expcat.maintenance':'Maintenance',
     'expcat.rent':'Rent','expcat.other':'Other',
-    // Settlement
+    'stl.range':'📅 Date Range','stl.view':'🔍 View',
     'stl.revenue':'TOTAL SALES REVENUE','stl.expenses':'TOTAL EXPENSES',
     'stl.profit':'NET PROFIT','stl.loss':'NET LOSS',
     'stl.byCat':'Expenses by Category','stl.rec':'record','stl.recs':'records',
-    'stl.loading':'Loading…',
   },
   sw:{
-    'title':'Ottoman Bey POS','logout':'Toka',
-    'salesToday':'Mauzo Leo','revenueToday':'Mapato Leo',
+    'logout':'Toka','salesToday':'Mauzo Leo','revenueToday':'Mapato Leo',
     'tabSale':'💰 Mauzo','tabExp':'💸 Gharama','tabStl':'🧾 Hesabu',
-    'enterItem':'1. Andika Chakula','itemName':'Jina la Chakula',
-    'itemPH':'mf. Chips Mayai','qty':'Idadi','price':'Bei',
-    'addToOrder':'➕ Ongeza kwenye Order','currentOrder':'Order ya Sasa',
-    'total':'JUMLA','assignWaiter':'2. Nani Ameuza',
+    'enterItem':'1. Andika Chakula','itemName':'Jina la Chakula','itemPH':'mf. Chips Mayai',
+    'qty':'Idadi','price':'Bei','addToOrder':'➕ Ongeza kwenye Order',
+    'currentOrder':'Order ya Sasa','total':'JUMLA','assignWaiter':'2. Nani Ameuza',
     'payMethod':'3. Njia ya Malipo','completeSale':'✅ Kamilisha Mauzo',
-    'todaySales':'🧾 Mauzo ya Leo','noSales':'Bado hakuna mauzo leo',
-    'langBtn':'EN',
-    // Gharama
+    'todaySales':'🧾 Mauzo ya Leo','noSales':'Bado hakuna mauzo leo','langBtn':'EN',
     'exp.addNew':'➕ Ongeza Gharama Mpya','exp.selectCat':'-- Chagua Aina --',
     'exp.descPH':'Maelezo (si lazima)','exp.amtPH':'Kiasi (TZS)',
     'exp.saveBtn':'💾 Hifadhi Gharama','exp.total':'Jumla ya Gharama',
@@ -254,479 +224,400 @@ const STRANS={
     'expcat.gas':'Gesi / Makaa','expcat.supplies':'Manunuzi ya Vifaa',
     'expcat.transport':'Nauli','expcat.maintenance':'Matengenezo',
     'expcat.rent':'Pango','expcat.other':'Nyingine',
-    // Hesabu
+    'stl.range':'📅 Chagua Kipindi','stl.view':'🔍 Angalia',
     'stl.revenue':'JUMLA YA MAUZO','stl.expenses':'JUMLA YA GHARAMA',
     'stl.profit':'FAIDA HALISI','stl.loss':'HASARA HALISI',
     'stl.byCat':'Gharama kwa Aina','stl.rec':'rekodi','stl.recs':'rekodi',
-    'stl.loading':'Inapakia…',
   }
 };
-function st(key){return STRANS[SLANG][key]||STRANS['en'][key]||key;}
+var EXP_CAT_KEYS = ['expcat.wages','expcat.electricity','expcat.water','expcat.gas',
+  'expcat.supplies','expcat.transport','expcat.maintenance','expcat.rent','expcat.other'];
+
+function st(key){ return STRANS[SLANG][key] || STRANS['en'][key] || key; }
+
 function toggleSaleLang(){
-  SLANG=SLANG==='en'?'sw':'en';
-  localStorage.setItem('pos_lang',SLANG);
+  SLANG = SLANG === 'en' ? 'sw' : 'en';
+  localStorage.setItem('pos_lang', SLANG);
   applyI18n();
-  // re-render whichever tab is open
-  const active=document.querySelector('.section.active');
+  var active = document.querySelector('.section.active');
   if(active){
-    if(active.id==='tab-expenses') loadExpenses();
-    if(active.id==='tab-settlement') loadSettlement();
-    // sale tab labels refresh via applyI18n
+    if(active.id === 'tab-expenses') loadExpenses();
+    if(active.id === 'tab-settlement') loadSettlement();
   }
 }
-const EXP_CAT_KEYS_SALE=['expcat.wages','expcat.electricity','expcat.water','expcat.gas',
-  'expcat.supplies','expcat.transport','expcat.maintenance','expcat.rent','expcat.other'];
+
 function applyI18n(){
-  // topbar
-  const langBtn=document.getElementById('lang-btn');
-  if(langBtn) langBtn.textContent=st('langBtn');
-  const whoEl=document.getElementById('logout-btn');
-  if(whoEl) whoEl.firstChild&&(whoEl.childNodes[0].textContent=st('logout')+' (');
-  // stats
-  const sl=document.getElementById('stat-lbl-orders');
-  const rl=document.getElementById('stat-lbl-revenue');
-  if(sl) sl.textContent=st('salesToday');
-  if(rl) rl.textContent=st('revenueToday');
+  var lb = document.getElementById('lang-btn');
+  if(lb) lb.textContent = st('langBtn');
+  var ll = document.getElementById('logout-label');
+  if(ll) ll.textContent = st('logout');
+  var so = document.getElementById('stat-lbl-orders');
+  if(so) so.textContent = st('salesToday');
+  var sr = document.getElementById('stat-lbl-revenue');
+  if(sr) sr.textContent = st('revenueToday');
   // tabs
-  const tabs=['tabSale','tabExp','tabStl'];
-  const tabBtns=document.querySelectorAll('.tab-btn');
-  tabBtns.forEach((b,i)=>{if(tabs[i]) b.textContent=st(tabs[i]);});
-  // sale form labels
-  const lblMap={
-    'lbl-item':st('enterItem'),'lbl-itemName':st('itemName'),'lbl-qty':st('qty'),
-    'lbl-price':st('price'),'lbl-addToOrder':st('addToOrder'),
-    'lbl-currentOrder':st('currentOrder'),'lbl-total':st('total'),
-    'lbl-waiter':st('assignWaiter'),'lbl-payMethod':st('payMethod'),
-    'lbl-complete':st('completeSale'),'lbl-todaySales':st('todaySales'),
-    'logout-label':st('logout'),
+  var tb0 = document.getElementById('tab-btn-sale');
+  var tb1 = document.getElementById('tab-btn-expenses');
+  var tb2 = document.getElementById('tab-btn-settlement');
+  if(tb0) tb0.textContent = st('tabSale');
+  if(tb1) tb1.textContent = st('tabExp');
+  if(tb2) tb2.textContent = st('tabStl');
+  // sale form
+  var lbls = {
+    'lbl-enterItem':st('enterItem'),'lbl-itemName':st('itemName'),
+    'lbl-qty':st('qty'),'lbl-price':st('price'),
+    'lbl-addToOrder':st('addToOrder'),'lbl-currentOrder':st('currentOrder'),
+    'lbl-total':st('total'),'lbl-waiter':st('assignWaiter'),
+    'lbl-payMethod':st('payMethod'),'lbl-complete':st('completeSale'),
+    'lbl-todaySales':st('todaySales'),
     'lbl-exp-addNew':st('exp.addNew'),'lbl-exp-saveBtn':st('exp.saveBtn'),
     'lbl-exp-listTitle':st('exp.listTitle'),
+    'lbl-stl-range':st('stl.range'),'lbl-stl-view':st('stl.view'),
   };
-  Object.entries(lblMap).forEach(([id,txt])=>{const e=document.getElementById(id);if(e)e.textContent=txt;});
-  const namePH=document.getElementById('in-name');
-  if(namePH) namePH.placeholder=st('itemPH');
-  // rebuild expense category dropdown if it exists
-  const expCat=document.getElementById('exp-cat');
+  Object.keys(lbls).forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.textContent = lbls[id];
+  });
+  // placeholder
+  var ni = document.getElementById('in-name');
+  if(ni) ni.placeholder = st('itemPH');
+  var ed = document.getElementById('exp-desc');
+  if(ed) ed.placeholder = st('exp.descPH');
+  var ea = document.getElementById('exp-amt');
+  if(ea) ea.placeholder = st('exp.amtPH');
+  // rebuild category dropdown preserving selection
+  var expCat = document.getElementById('exp-cat');
   if(expCat){
-    const curVal=expCat.value;
-    expCat.innerHTML=`<option value="">${st('exp.selectCat')}</option>`+
-      EXP_CAT_KEYS_SALE.map(k=>`<option value="${STRANS.en[k]}">${st(k)}</option>`).join('');
-    expCat.value=curVal;
+    var cur = expCat.value;
+    expCat.innerHTML = '<option value="">' + st('exp.selectCat') + '</option>' +
+      EXP_CAT_KEYS.map(function(k){
+        return '<option value="' + STRANS.en[k] + '">' + st(k) + '</option>';
+      }).join('');
+    expCat.value = cur;
   }
-} // {name, qty, price}
-let WAITERS=[]; let SELECTED_WAITER=null;
-let PAY_METHOD='cash';
-
-// ── Draft persistence: keeps an in-progress order safe across page
-// refresh, tab switch, app close, or accidental navigation — until the
-// sale is actually completed (paid), at which point the draft is cleared.
-function saveDraft(){
-  try{
-    sessionStorage.setItem(DRAFT_KEY,JSON.stringify({LINES,SELECTED_WAITER,PAY_METHOD}));
-  }catch(_){}
 }
-function loadDraft(){
-  try{
-    const raw=sessionStorage.getItem(DRAFT_KEY);
-    if(!raw)return;
-    const d=JSON.parse(raw);
-    LINES=Array.isArray(d.LINES)?d.LINES:[];
-    SELECTED_WAITER=d.SELECTED_WAITER||null;
-    PAY_METHOD=d.PAY_METHOD||'cash';
-  }catch(_){}
+
+// ─── Core ────────────────────────────────────────────────────
+var TOKEN = '', SESSION = null, LINES = [], SELECTED_WAITER = null, PAY_METHOD = 'cash';
+var DRAFT_KEY = 'sale_draft_v2';
+var WAITERS = [];
+
+function fmtTZS(n){ return 'TZS ' + Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0}); }
+function fmtTime(d){ return d ? new Date(d).toLocaleTimeString('sw-TZ',{hour:'2-digit',minute:'2-digit'}) : '—'; }
+
+function toast(msg, ms){
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(function(){ el.style.display = 'none'; }, ms || 2200);
 }
-function clearDraft(){try{sessionStorage.removeItem(DRAFT_KEY);}catch(_){}}
 
-function fmtTZS(n){return 'TZS '+Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0});}
-function fmtTime(d){return d?new Date(d).toLocaleTimeString('sw-TZ',{hour:'2-digit',minute:'2-digit'}):'—';}
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2400);}
-
-async function api(path,opts){
-  opts=opts||{};
-  opts.headers=Object.assign({'Content-Type':'application/json'},opts.headers||{});
-  if(TOKEN)opts.headers['Authorization']='Bearer '+TOKEN;
-  const res=await fetch(API_BASE+path,opts);
-  const data=await res.json().catch(()=>({}));
-  if(!res.ok){
-    if(res.status===401 && TOKEN){
-      // Session no longer valid server-side — clear it and drop back to the
-      // login screen with a clear message instead of failing silently on
-      // every subsequent tap (the in-progress order draft is kept, since
-      // sessionStorage isn't touched here, so nothing already added is lost).
-      TOKEN=null;SESSION=null;sessionStorage.removeItem('sale_token');
-      document.getElementById('main-view').style.display='none';
-      document.getElementById('login-view').style.display='block';
-      document.getElementById('l-err').textContent='Muda wa kuingia umeisha. Tafadhali ingia tena.';
-    }
-    throw new Error(data.error||'Hitilafu');
-  }
+async function api(url, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({'Content-Type':'application/json'}, opts.headers || {});
+  if(TOKEN) opts.headers['Authorization'] = 'Bearer ' + TOKEN;
+  var res = await fetch(url, opts);
+  var data = await res.json();
+  if(!res.ok) throw new Error(data.error || data.message || res.status);
   return data;
 }
 
 async function login(){
-  const username=document.getElementById('l-user').value.trim();
-  const password=document.getElementById('l-pass').value;
-  const err=document.getElementById('l-err'),btn=document.getElementById('l-btn');
-  err.textContent='';
-  if(!username||!password){err.textContent='Jaza jina na nenosiri';return;}
-  btn.disabled=true;btn.textContent='Inaingia…';
+  var btn = document.getElementById('l-btn');
+  var err = document.getElementById('l-err');
+  err.textContent = '';
+  btn.disabled = true; btn.textContent = '…';
   try{
-    const d=await api('/api/login',{method:'POST',body:JSON.stringify({username,password})});
-    if(d.user.role!=='Cashier'){err.textContent='Akaunti hii si ya Cashier. Ukurasa huu ni kwa ajili ya Cashier tu.';btn.disabled=false;btn.textContent='🔐 Ingia';await api('/api/logout',{method:'POST'}).catch(()=>{});return;}
-    TOKEN=d.token;SESSION=d.user;
-    sessionStorage.setItem('sale_token',TOKEN);
+    var d = await api('/api/login',{method:'POST',body:JSON.stringify({
+      username: document.getElementById('l-user').value.trim(),
+      password: document.getElementById('l-pass').value
+    })});
+    if(d.user.role !== 'Cashier'){
+      err.textContent = 'This account is not a Cashier account.';
+      await api('/api/logout',{method:'POST'}).catch(function(){});
+      btn.disabled = false; btn.textContent = '🔐 Login'; return;
+    }
+    TOKEN = d.token || '';
+    SESSION = d.user;
+    sessionStorage.setItem('sale_token', TOKEN);
     initApp();
-  }catch(e){err.textContent=e.message;btn.disabled=false;btn.textContent='🔐 Ingia';}
+  }catch(e){
+    err.textContent = e.message;
+    btn.disabled = false; btn.textContent = '🔐 Login';
+  }
 }
+
 async function logout(){
-  try{await api('/api/logout',{method:'POST'});}catch(_){}
-  TOKEN=null;SESSION=null;sessionStorage.removeItem('sale_token');
-  clearDraft();LINES=[];SELECTED_WAITER=null;PAY_METHOD='cash';
-  document.getElementById('main-view').style.display='none';
-  document.getElementById('login-view').style.display='block';
-  document.getElementById('l-pass').value='';
+  try{ await api('/api/logout',{method:'POST'}); }catch(_){}
+  TOKEN = ''; SESSION = null; LINES = []; SELECTED_WAITER = null;
+  sessionStorage.removeItem('sale_token');
+  clearDraft();
+  document.getElementById('main-view').style.display = 'none';
+  document.getElementById('login-view').style.display = 'block';
 }
 
 async function initApp(){
-  document.getElementById('login-view').style.display='none';
-  document.getElementById('main-view').style.display='block';
-  document.getElementById('who').textContent=SESSION.name;
+  document.getElementById('login-view').style.display = 'none';
+  document.getElementById('main-view').style.display = 'block';
+  document.getElementById('who').textContent = SESSION.name;
   applyI18n();
   loadDraft();
   renderLines();
-  document.querySelectorAll('.pm-btn').forEach(b=>b.classList.remove('active'));
-  const pmMap={cash:0,mpesa:1,tigopesa:2,airtelmoney:3,card:4,bank:5};
-  const pmBtns=document.querySelectorAll('.pm-btn');
-  if(pmBtns[pmMap[PAY_METHOD]])pmBtns[pmMap[PAY_METHOD]].classList.add('active');
-  await Promise.all([loadWaiters(),loadStats()]);
-  if(LINES.length)showToast('↩️ Order iliyokuwa inaendelea imerejeshwa');
+  document.querySelectorAll('.pm-btn').forEach(function(b){ b.classList.remove('active'); });
+  var pmMap = {cash:0,mpesa:1,tigopesa:2,airtelmoney:3,card:4,bank:5};
+  var pmBtns = document.querySelectorAll('.pm-btn');
+  var idx = pmMap[PAY_METHOD];
+  if(pmBtns[idx]) pmBtns[idx].classList.add('active');
+  await Promise.all([loadWaiters(), loadStats()]);
 }
 
-// ── Step 1: add free-text item lines ──────────────────────────
-function addLine(){
-  const nameEl=document.getElementById('in-name'), qtyEl=document.getElementById('in-qty'), priceEl=document.getElementById('in-price'), err=document.getElementById('in-err');
-  err.textContent='';
-  const name=nameEl.value.trim();
-  const qty=Number(qtyEl.value);
-  const price=Number(priceEl.value);
-  if(!name){err.textContent='Andika jina la chakula';return;}
-  if(!qty||qty<=0){err.textContent='Idadi si sahihi';return;}
-  if(isNaN(price)||price<0){err.textContent='Bei si sahihi';return;}
-  LINES.push({name,qty,price});
-  nameEl.value='';qtyEl.value=1;priceEl.value='';
-  nameEl.focus();
-  renderLines();
-  saveDraft();
+// ─── Draft ───────────────────────────────────────────────────
+function saveDraft(){
+  try{ sessionStorage.setItem(DRAFT_KEY, JSON.stringify({lines:LINES,waiter:SELECTED_WAITER,pm:PAY_METHOD})); }catch(_){}
 }
-function removeLine(i){LINES.splice(i,1);renderLines();saveDraft();}
+function loadDraft(){
+  try{
+    var raw = sessionStorage.getItem(DRAFT_KEY);
+    if(!raw) return;
+    var d = JSON.parse(raw);
+    LINES = d.lines || []; SELECTED_WAITER = d.waiter || null; PAY_METHOD = d.pm || 'cash';
+  }catch(_){}
+}
+function clearDraft(){ try{ sessionStorage.removeItem(DRAFT_KEY); }catch(_){} }
+
+// ─── Sale form ───────────────────────────────────────────────
+function addLine(){
+  var name = document.getElementById('in-name').value.trim();
+  var qty  = parseInt(document.getElementById('in-qty').value) || 1;
+  var price= parseFloat(document.getElementById('in-price').value);
+  var err  = document.getElementById('in-err');
+  if(!name){ err.textContent = 'Enter item name'; return; }
+  if(!price || price <= 0){ err.textContent = 'Enter a valid price'; return; }
+  err.textContent = '';
+  LINES.push({name:name, qty:qty, price:price});
+  document.getElementById('in-name').value = '';
+  document.getElementById('in-price').value = '';
+  document.getElementById('in-qty').value = '1';
+  renderLines(); saveDraft();
+}
+
+function removeLine(i){ LINES.splice(i,1); renderLines(); saveDraft(); }
+
 function renderLines(){
-  const card=document.getElementById('lines-card');
-  const list=document.getElementById('lines-list');
-  if(!LINES.length){card.style.display='none';updateGates();return;}
-  card.style.display='block';
-  let total=0;
-  list.innerHTML=LINES.map((l,i)=>{
-    const lt=l.qty*l.price;total+=lt;
-    return `<div class="line-item">
-      <div>
-        <div class="li-name">${l.name}</div>
-        <div class="li-sub">${l.qty} × ${fmtTZS(l.price)}</div>
-      </div>
-      <div class="li-total">${fmtTZS(lt)}</div>
-      <button class="li-x" onclick="removeLine(${i})">✕</button>
-    </div>`;
+  var lc = document.getElementById('lines-card');
+  var ll = document.getElementById('lines-list');
+  var ot = document.getElementById('order-total');
+  var wc = document.getElementById('waiter-card');
+  var pc = document.getElementById('pay-card');
+  if(!LINES.length){
+    lc.style.display = 'none'; wc.style.display = 'none'; pc.style.display = 'none'; return;
+  }
+  lc.style.display = 'block'; wc.style.display = 'block'; pc.style.display = 'block';
+  var total = LINES.reduce(function(s,l){ return s + l.qty * l.price; }, 0);
+  ot.textContent = fmtTZS(total);
+  ll.innerHTML = LINES.map(function(l,i){
+    var lt = l.qty * l.price;
+    return '<div class="line-item">' +
+      '<div><div class="li-name">' + l.name + '</div>' +
+      '<div class="li-sub">' + l.qty + ' × ' + fmtTZS(l.price) + '</div></div>' +
+      '<div class="li-total">' + fmtTZS(lt) + '</div>' +
+      '<button class="li-x" onclick="removeLine(' + i + ')">✕</button></div>';
   }).join('');
-  document.getElementById('order-total').textContent=fmtTZS(total);
+  renderWaiters();
   updateGates();
 }
+
 function updateGates(){
-  document.getElementById('waiter-card').style.display=LINES.length?'block':'none';
-  document.getElementById('pay-card').style.display=(LINES.length&&SELECTED_WAITER)?'block':'none';
+  var saleBtn = document.getElementById('sale-btn');
+  if(saleBtn) saleBtn.disabled = !LINES.length || !SELECTED_WAITER;
 }
 
-// ── Step 2: waiter picker ──────────────────────────────────────
+function selPM(pm, btn){
+  PAY_METHOD = pm;
+  document.querySelectorAll('.pm-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  saveDraft();
+}
+
 async function loadWaiters(){
   try{
-    const d=await api('/api/waiter-availability');
-    WAITERS=d.waiters||[];
+    var d = await api('/api/waiters');
+    WAITERS = d.waiters || [];
     renderWaiters();
-  }catch(e){document.getElementById('waiter-grid').innerHTML=`<p class="err">${e.message}</p>`;}
+  }catch(_){}
 }
-function renderWaiters(){
-  const el=document.getElementById('waiter-grid');
-  el.innerHTML=WAITERS.length?WAITERS.map(w=>`
-    <button class="wt-btn ${SELECTED_WAITER===w.id?'active':''}" onclick="pickWaiter('${w.id}')">👤 ${w.full_name}</button>
-  `).join(''):'<p class="empty">Hakuna mhudumu aliyesajiliwa</p>';
-}
-function pickWaiter(id){SELECTED_WAITER=id;renderWaiters();updateGates();saveDraft();}
 
-// ── Step 3: payment + submit ────────────────────────────────────
-function selPM(m,btn){PAY_METHOD=m;document.querySelectorAll('.pm-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');saveDraft();}
+function renderWaiters(){
+  var wg = document.getElementById('waiter-grid');
+  if(!wg) return;
+  if(!WAITERS.length){ wg.innerHTML = '<p class="muted" style="text-align:center">No waiters on shift</p>'; return; }
+  wg.innerHTML = WAITERS.map(function(w){
+    var active = SELECTED_WAITER === w.id ? ' active' : '';
+    return '<button class="wt-btn' + active + '" onclick="pickWaiter(\'' + w.id + '\')">' + w.full_name + '</button>';
+  }).join('');
+}
+
+function pickWaiter(id){ SELECTED_WAITER = id; renderWaiters(); updateGates(); saveDraft(); }
 
 async function completeSale(){
-  if(!LINES.length||!SELECTED_WAITER)return;
-  const btn=document.getElementById('sale-btn');
-  btn.disabled=true;btn.textContent='Inatuma…';
+  if(!LINES.length || !SELECTED_WAITER) return;
+  var btn = document.getElementById('sale-btn');
+  btn.disabled = true;
   try{
-    const items=LINES.map(l=>({name:l.name,quantity:l.qty,price:l.price}));
-    await api('/api/quick-sale',{method:'POST',body:JSON.stringify({items,waiter_id:SELECTED_WAITER,payment_method:PAY_METHOD})});
-    LINES=[];SELECTED_WAITER=null;
-    clearDraft();
-    renderLines();renderWaiters();
-    showToast('✅ Mauzo Yamekamilika!');
+    await api('/api/quick-sale',{method:'POST',body:JSON.stringify({
+      items: LINES.map(function(l){ return {name:l.name,quantity:l.qty,price:l.price}; }),
+      waiter_id: SELECTED_WAITER,
+      payment_method: PAY_METHOD
+    })});
+    LINES = []; renderLines(); clearDraft();
+    toast('✅ Sale complete!');
     await loadStats();
-  }catch(e){showToast('⚠️ '+e.message);}
-  finally{btn.disabled=false;btn.textContent='✅ Kamilisha Mauzo';}
+  }catch(e){
+    toast('Error: ' + e.message);
+    btn.disabled = false;
+  }
 }
 
-// ── Stats + today's log ──────────────────────────────────────────
 async function loadStats(){
   try{
-    const today=new Date().toISOString().slice(0,10);
-    const d=await api('/api/reports?from='+today+'&to='+today);
-    document.getElementById('st-orders').textContent=d.summary.total_orders;
-    document.getElementById('st-revenue').textContent=fmtTZS(d.summary.revenue);
-    const el=document.getElementById('today-log');
-    const orders=d.orders||[];
-    el.innerHTML=orders.length?orders.map(o=>`
-      <div class="log-row">
-        <span>${fmtTime(o.paid_at)} · ${o.order_number}</span>
-        <span>${(o.payment_method||'—').toUpperCase()} · <b style="color:var(--gold)">${fmtTZS(o.amount)}</b></span>
-      </div>`).join(''):'<p class="empty">Bado hakuna mauzo leo</p>';
-  }catch(e){document.getElementById('today-log').innerHTML=`<p class="err">${e.message}</p>`;}
+    var d = await api('/api/cashier-stats');
+    document.getElementById('st-orders').textContent = d.summary ? d.summary.total_orders : 0;
+    document.getElementById('st-revenue').textContent = fmtTZS(d.summary ? d.summary.revenue : 0);
+    var el = document.getElementById('today-log');
+    var orders = d.paid_orders || [];
+    if(!orders.length){ el.innerHTML = '<p class="empty">' + st('noSales') + '</p>'; return; }
+    el.innerHTML = orders.slice().reverse().map(function(o){
+      var items = (o.items||[]).map(function(it){ return it.item_name + ' ×' + it.quantity; }).join(', ');
+      return '<div class="log-row"><div><div style="font-weight:600">' + items + '</div>' +
+        '<div class="muted">' + fmtTime(o.created_at) + ' · ' + (o.waiter_name||'') + '</div></div>' +
+        '<div style="font-weight:700;color:var(--gold)">' + fmtTZS(o.total_amount) + '</div></div>';
+    }).join('');
+  }catch(e){ document.getElementById('today-log').innerHTML = '<p class="err">' + e.message + '</p>'; }
 }
 
-// ── Tab switching ────────────────────────────────────────────
-function switchTab(name){
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  event.currentTarget.classList.add('active');
-  if(name==='expenses') loadExpenses();
-  if(name==='settlement') loadSettlement();
-}
-
-// ── Expenses ─────────────────────────────────────────────────
-async function submitExpense(){
-  const cat=document.getElementById('exp-cat').value.trim();
-  const desc=document.getElementById('exp-desc').value.trim();
-  const amt=document.getElementById('exp-amt').value;
-  const msg=document.getElementById('exp-msg');
-  if(!cat){msg.style.color='var(--red)';msg.textContent=st('exp.errCat');return;}
-  if(!amt||Number(amt)<=0){msg.style.color='var(--red)';msg.textContent=st('exp.errAmt');return;}
-  msg.style.color='#c9b89a';msg.textContent=st('exp.saving');
-  try{
-    await api('/api/expenses',{method:'POST',body:JSON.stringify({category:cat,description:desc,amount:Number(amt)})});
-    document.getElementById('exp-cat').value='';
-    document.getElementById('exp-desc').value='';
-    document.getElementById('exp-amt').value='';
-    msg.style.color='var(--green)';msg.textContent=st('exp.saved');
-    setTimeout(()=>{msg.textContent='';},2500);
-    await loadExpenses();
-  }catch(e){msg.style.color='var(--red)';msg.textContent='Error: '+e.message;}
-}
-async function loadExpenses(){
-  const today=new Date().toISOString().slice(0,10);
-  const fromEl=document.getElementById('exp-from');
-  const toEl=document.getElementById('exp-to');
-  if(fromEl&&!fromEl.value) fromEl.value=today;
-  if(toEl&&!toEl.value) toEl.value=today;
-  const f=fromEl?fromEl.value:today;
-  const tv=toEl?toEl.value:today;
-  const el=document.getElementById('exp-list');
-  if(!el)return;
-  el.innerHTML=`<div style="text-align:center;padding:14px;color:#9a8870">${st('exp.loading')}</div>`;
-  try{
-    const d=await api(`/api/expenses?from=${f}&to=${tv}`);
-    if(!d.expenses||!d.expenses.length){
-      el.innerHTML=`<div style="text-align:center;padding:14px;color:#9a8870">${st('exp.none')}</div>`;return;
-    }
-    el.innerHTML=`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(231,76,60,.1);border-radius:8px;margin-bottom:12px;border:1px solid rgba(231,76,60,.25)">
-        <span style="font-weight:700">${st('exp.total')}</span>
-        <span style="font-weight:800;color:var(--red)">${fmtTZS(d.total)}</span>
-      </div>
-      ${d.expenses.map(e=>`
-      <div class="exp-row">
-        <div>
-          <div class="exp-cat">${e.category}</div>
-          ${e.description?`<div class="exp-meta">${e.description}</div>`:''}
-          <div class="exp-meta">🕒 ${new Date(e.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · ${e.recorded_by_name}</div>
-        </div>
-        <span class="exp-amt">${fmtTZS(e.amount)}</span>
-      </div>`).join('')}`;
-  }catch(e){el.innerHTML=`<div style="color:var(--red);padding:10px">Error: ${e.message}</div>`;}
-}
-
-// ── Settlement ────────────────────────────────────────────────
-async function loadSettlement(){
-  const today=new Date().toISOString().slice(0,10);
-  const fromEl=document.getElementById('stl-from');
-  const toEl=document.getElementById('stl-to');
-  if(fromEl&&!fromEl.value) fromEl.value=today;
-  if(toEl&&!toEl.value) toEl.value=today;
-  const f=fromEl?fromEl.value:today;
-  const tv=toEl?toEl.value:today;
-  const el=document.getElementById('stl-view');
-  if(!el)return;
-  el.innerHTML=`<div style="text-align:center;padding:20px;color:#9a8870">${st('stl.loading')}</div>`;
-  try{
-    const d=await api(`/api/settlement?from=${f}&to=${tv}`);
-    const profit=d.net_balance>=0;
-    el.innerHTML=`
-      <div class="card stl-revenue">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-size:.75rem;color:#9a8870;margin-bottom:3px">${st('stl.revenue')}</div><div style="font-weight:800;font-size:1.2rem;color:var(--green)">${fmtTZS(d.revenue)}</div></div>
-          <span style="font-size:1.8rem">💰</span>
-        </div>
-      </div>
-      <div class="card stl-expense">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-size:.75rem;color:#9a8870;margin-bottom:3px">${st('stl.expenses')}</div><div style="font-weight:800;font-size:1.2rem;color:var(--red)">${fmtTZS(d.expenses)}</div></div>
-          <span style="font-size:1.8rem">💸</span>
-        </div>
-      </div>
-      <div class="card" style="border:2px solid ${profit?'rgba(46,204,113,.5)':'rgba(231,76,60,.5)'};background:${profit?'rgba(46,204,113,.07)':'rgba(231,76,60,.07)'}">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-size:.75rem;color:#9a8870;margin-bottom:3px">${profit?st('stl.profit'):st('stl.loss')}</div>
-            <div style="font-weight:800;font-size:1.5rem;color:${profit?'var(--green)':'var(--red)'}">${fmtTZS(d.net_balance)}</div>
-          </div>
-          <span style="font-size:2rem">${profit?'✅':'⚠️'}</span>
-        </div>
-      </div>
-      ${d.expense_breakdown&&d.expense_breakdown.length?`
-      <div class="card">
-        <div class="cd">${st('stl.byCat')}</div>
-        ${d.expense_breakdown.map(c=>`
-        <div class="exp-row">
-          <div><div class="exp-cat">${c.category}</div><div class="exp-meta">${c.count} ${c.count===1?st('stl.rec'):st('stl.recs')}</div></div>
-          <span class="exp-amt">${fmtTZS(c.total)}</span>
-        </div>`).join('')}
-      </div>`:''}`;
-  }catch(e){el.innerHTML=`<div style="color:var(--red);padding:10px">Error: ${e.message}</div>`;}
-}
-
-// Auto-restore session for this browser tab only (sessionStorage, not
-// localStorage) — closing the tab/browser logs the cashier out, which is
-// safer on a shared till device.
-(function boot(){
-  const tv=sessionStorage.getItem('sale_token');
-  if(tv){
-    TOKEN=tv;
-    api('/api/me').then(d=>{SESSION=d.user;initApp();}).catch(()=>{sessionStorage.removeItem('sale_token');});
+// ─── Tab switching ───────────────────────────────────────────
+function switchTab(name, btn){
+  document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('tab-' + name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  var today = new Date().toISOString().slice(0,10);
+  if(name === 'expenses'){
+    var ef = document.getElementById('exp-from'), et = document.getElementById('exp-to');
+    if(ef && !ef.value) ef.value = today;
+    if(et && !et.value) et.value = today;
+    loadExpenses();
   }
-})();
-</script>
-</body>
-</html>
-  const cat=document.getElementById('exp-cat').value.trim();
-  const desc=document.getElementById('exp-desc').value.trim();
-  const amt=document.getElementById('exp-amt').value;
-  const msg=document.getElementById('exp-msg');
-  if(!cat){msg.style.color='var(--red)';msg.textContent='Please select a category';return;}
-  if(!amt||Number(amt)<=0){msg.style.color='var(--red)';msg.textContent='Please enter a valid amount';return;}
-  msg.style.color='#c9b89a';msg.textContent='Saving…';
+  if(name === 'settlement'){
+    var sf = document.getElementById('stl-from'), st2 = document.getElementById('stl-to');
+    if(sf && !sf.value) sf.value = today;
+    if(st2 && !st2.value) st2.value = today;
+    loadSettlement();
+  }
+}
+
+// ─── Expenses ────────────────────────────────────────────────
+async function submitExpense(){
+  var cat = document.getElementById('exp-cat').value.trim();
+  var desc = document.getElementById('exp-desc').value.trim();
+  var amt = document.getElementById('exp-amt').value;
+  var msg = document.getElementById('exp-msg');
+  if(!cat){ msg.style.color='var(--red)'; msg.textContent=st('exp.errCat'); return; }
+  if(!amt || Number(amt)<=0){ msg.style.color='var(--red)'; msg.textContent=st('exp.errAmt'); return; }
+  msg.style.color='#c9b89a'; msg.textContent=st('exp.saving');
   try{
     await api('/api/expenses',{method:'POST',body:JSON.stringify({category:cat,description:desc,amount:Number(amt)})});
     document.getElementById('exp-cat').value='';
     document.getElementById('exp-desc').value='';
     document.getElementById('exp-amt').value='';
-    msg.style.color='var(--green)';msg.textContent='✅ Expense saved!';
-    setTimeout(()=>{msg.textContent='';},2500);
-    await loadExpenses();
-  }catch(e){msg.style.color='var(--red)';msg.textContent='Error: '+e.message;}
+    msg.style.color='var(--green)'; msg.textContent=st('exp.saved');
+    setTimeout(function(){ msg.textContent=''; }, 2500);
+    loadExpenses();
+  }catch(e){ msg.style.color='var(--red)'; msg.textContent='Error: '+e.message; }
 }
+
 async function loadExpenses(){
-  const today=new Date().toISOString().slice(0,10);
-  const fromEl=document.getElementById('exp-from');
-  const toEl=document.getElementById('exp-to');
-  if(fromEl&&!fromEl.value) fromEl.value=today;
-  if(toEl&&!toEl.value) toEl.value=today;
-  const f=fromEl?fromEl.value:today;
-  const t=toEl?toEl.value:today;
-  const el=document.getElementById('exp-list');
-  if(!el)return;
-  el.innerHTML='<div style="text-align:center;padding:14px;color:#9a8870">Loading…</div>';
+  var today = new Date().toISOString().slice(0,10);
+  var ef = document.getElementById('exp-from');
+  var et = document.getElementById('exp-to');
+  if(ef && !ef.value) ef.value = today;
+  if(et && !et.value) et.value = today;
+  var f = ef ? ef.value : today;
+  var tv = et ? et.value : today;
+  var el = document.getElementById('exp-list');
+  if(!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:14px;color:#9a8870">' + st('exp.loading') + '</div>';
   try{
-    const d=await api(`/api/expenses?from=${f}&to=${t}`);
-    if(!d.expenses||!d.expenses.length){
-      el.innerHTML='<div style="text-align:center;padding:14px;color:#9a8870">No expenses recorded for this period</div>';return;
+    var d = await api('/api/expenses?from=' + f + '&to=' + tv);
+    if(!d.expenses || !d.expenses.length){
+      el.innerHTML = '<div style="text-align:center;padding:14px;color:#9a8870">' + st('exp.none') + '</div>'; return;
     }
-    el.innerHTML=`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(231,76,60,.1);border-radius:8px;margin-bottom:12px;border:1px solid rgba(231,76,60,.25)">
-        <span style="font-weight:700">Total Expenses</span>
-        <span style="font-weight:800;color:var(--red)">${fmtTZS(d.total)}</span>
-      </div>
-      ${d.expenses.map(e=>`
-      <div class="exp-row">
-        <div>
-          <div class="exp-cat">${e.category}</div>
-          ${e.description?`<div class="exp-meta">${e.description}</div>`:''}
-          <div class="exp-meta">🕒 ${new Date(e.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · ${e.recorded_by_name}</div>
-        </div>
-        <span class="exp-amt">${fmtTZS(e.amount)}</span>
-      </div>`).join('')}`;
-  }catch(e){el.innerHTML=`<div style="color:var(--red);padding:10px">Error: ${e.message}</div>`;}
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;' +
+      'padding:10px 12px;background:rgba(231,76,60,.1);border-radius:8px;margin-bottom:12px;' +
+      'border:1px solid rgba(231,76,60,.25)">' +
+      '<span style="font-weight:700">' + st('exp.total') + '</span>' +
+      '<span style="font-weight:800;color:var(--red)">' + fmtTZS(d.total) + '</span></div>';
+    html += d.expenses.map(function(e){
+      return '<div class="exp-row">' +
+        '<div><div class="exp-cat">' + e.category + '</div>' +
+        (e.description ? '<div class="exp-meta">' + e.description + '</div>' : '') +
+        '<div class="exp-meta">🕒 ' + fmtTime(e.created_at) + ' · ' + e.recorded_by_name + '</div></div>' +
+        '<span class="exp-amt">' + fmtTZS(e.amount) + '</span></div>';
+    }).join('');
+    el.innerHTML = html;
+  }catch(e){ el.innerHTML = '<div style="color:var(--red);padding:10px">Error: ' + e.message + '</div>'; }
 }
 
-// ── Settlement ────────────────────────────────────────────────
+// ─── Settlement ──────────────────────────────────────────────
 async function loadSettlement(){
-  const today=new Date().toISOString().slice(0,10);
-  const fromEl=document.getElementById('stl-from');
-  const toEl=document.getElementById('stl-to');
-  if(fromEl&&!fromEl.value) fromEl.value=today;
-  if(toEl&&!toEl.value) toEl.value=today;
-  const f=fromEl?fromEl.value:today;
-  const t=toEl?toEl.value:today;
-  const el=document.getElementById('stl-view');
-  if(!el)return;
-  el.innerHTML='<div style="text-align:center;padding:20px;color:#9a8870">Loading…</div>';
+  var today = new Date().toISOString().slice(0,10);
+  var sf = document.getElementById('stl-from');
+  var sv = document.getElementById('stl-to');
+  if(sf && !sf.value) sf.value = today;
+  if(sv && !sv.value) sv.value = today;
+  var f = sf ? sf.value : today;
+  var tv = sv ? sv.value : today;
+  var el = document.getElementById('stl-view');
+  if(!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:#9a8870">' + st('exp.loading') + '</div>';
   try{
-    const d=await api(`/api/settlement?from=${f}&to=${t}`);
-    const profit=d.net_balance>=0;
-    el.innerHTML=`
-      <div class="card stl-revenue">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-size:.75rem;color:#9a8870;margin-bottom:3px">TOTAL SALES REVENUE</div><div style="font-weight:800;font-size:1.2rem;color:var(--green)">${fmtTZS(d.revenue)}</div></div>
-          <span style="font-size:1.8rem">💰</span>
-        </div>
-      </div>
-      <div class="card stl-expense">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-size:.75rem;color:#9a8870;margin-bottom:3px">TOTAL EXPENSES</div><div style="font-weight:800;font-size:1.2rem;color:var(--red)">${fmtTZS(d.expenses)}</div></div>
-          <span style="font-size:1.8rem">💸</span>
-        </div>
-      </div>
-      <div class="card" style="border:2px solid ${profit?'rgba(46,204,113,.5)':'rgba(231,76,60,.5)'};background:${profit?'rgba(46,204,113,.07)':'rgba(231,76,60,.07)'}">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-size:.75rem;color:#9a8870;margin-bottom:3px">${profit?'NET PROFIT':'NET LOSS'}</div>
-            <div style="font-weight:800;font-size:1.5rem;color:${profit?'var(--green)':'var(--red)'}">${fmtTZS(d.net_balance)}</div>
-          </div>
-          <span style="font-size:2rem">${profit?'✅':'⚠️'}</span>
-        </div>
-      </div>
-      ${d.expense_breakdown&&d.expense_breakdown.length?`
-      <div class="card">
-        <div class="cd">Expenses by Category</div>
-        ${d.expense_breakdown.map(c=>`
-        <div class="exp-row">
-          <div><div class="exp-cat">${c.category}</div><div class="exp-meta">${c.count} record${c.count!==1?'s':''}</div></div>
-          <span class="exp-amt">${fmtTZS(c.total)}</span>
-        </div>`).join('')}
-      </div>`:''}`;
-  }catch(e){el.innerHTML=`<div style="color:var(--red);padding:10px">Error: ${e.message}</div>`;}
+    var d = await api('/api/settlement?from=' + f + '&to=' + tv);
+    var profit = d.net_balance >= 0;
+    var html =
+      '<div class="card" style="background:rgba(46,204,113,.07);border:1px solid rgba(46,204,113,.3)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<div><div style="font-size:.72rem;color:#9a8870;font-weight:700;margin-bottom:3px">' + st('stl.revenue') + '</div>' +
+          '<div style="font-weight:800;font-size:1.2rem;color:var(--green)">' + fmtTZS(d.revenue) + '</div></div>' +
+          '<span style="font-size:1.8rem">💰</span></div></div>' +
+      '<div class="card" style="background:rgba(231,76,60,.07);border:1px solid rgba(231,76,60,.3)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<div><div style="font-size:.72rem;color:#9a8870;font-weight:700;margin-bottom:3px">' + st('stl.expenses') + '</div>' +
+          '<div style="font-weight:800;font-size:1.2rem;color:var(--red)">' + fmtTZS(d.expenses) + '</div></div>' +
+          '<span style="font-size:1.8rem">💸</span></div></div>' +
+      '<div class="card" style="border:2px solid ' + (profit?'rgba(46,204,113,.5)':'rgba(231,76,60,.5)') + ';' +
+        'background:' + (profit?'rgba(46,204,113,.07)':'rgba(231,76,60,.07)') + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<div><div style="font-size:.72rem;color:#9a8870;font-weight:700;margin-bottom:3px">' + (profit?st('stl.profit'):st('stl.loss')) + '</div>' +
+          '<div style="font-weight:800;font-size:1.5rem;color:' + (profit?'var(--green)':'var(--red)') + '">' + fmtTZS(d.net_balance) + '</div></div>' +
+          '<span style="font-size:2rem">' + (profit?'✅':'⚠️') + '</span></div></div>';
+    if(d.expense_breakdown && d.expense_breakdown.length){
+      html += '<div class="card"><div class="cd">' + st('stl.byCat') + '</div>';
+      html += d.expense_breakdown.map(function(c){
+        return '<div class="exp-row">' +
+          '<div><div class="exp-cat">' + c.category + '</div>' +
+          '<div class="exp-meta">' + c.count + ' ' + (c.count===1?st('stl.rec'):st('stl.recs')) + '</div></div>' +
+          '<span class="exp-amt">' + fmtTZS(c.total) + '</span></div>';
+      }).join('') + '</div>';
+    }
+    el.innerHTML = html;
+  }catch(e){ el.innerHTML = '<div style="color:var(--red);padding:10px">Error: ' + e.message + '</div>'; }
 }
 
-// Auto-restore session for this browser tab only (sessionStorage, not
-// localStorage) — closing the tab/browser logs the cashier out, which is
-// safer on a shared till device.
+// ─── Boot ────────────────────────────────────────────────────
 (function boot(){
-  const t=sessionStorage.getItem('sale_token');
-  if(t){
-    TOKEN=t;
-    api('/api/me').then(d=>{SESSION=d.user;initApp();}).catch(()=>{sessionStorage.removeItem('sale_token');});
+  var tk = sessionStorage.getItem('sale_token');
+  if(tk){
+    TOKEN = tk;
+    api('/api/me').then(function(d){ SESSION=d.user; initApp(); }).catch(function(){ sessionStorage.removeItem('sale_token'); });
   }
 })();
 </script>
