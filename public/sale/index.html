@@ -450,7 +450,7 @@ function selPM(pm, btn){
 
 async function loadWaiters(){
   try{
-    var d = await api('/api/waiters');
+    var d = await api('/api/waiter-availability');
     WAITERS = d.waiters || [];
     renderWaiters();
   }catch(_){}
@@ -489,9 +489,9 @@ async function completeSale(){
 
 async function loadStats(){
   try{
-    var d = await api('/api/cashier-stats');
-    document.getElementById('st-orders').textContent = d.summary ? d.summary.total_orders : 0;
-    document.getElementById('st-revenue').textContent = fmtTZS(d.summary ? d.summary.revenue : 0);
+    var d = await api('/api/cashier/my-stats');
+    document.getElementById('st-orders').textContent = d.stats ? d.stats.orders_today : 0;
+    document.getElementById('st-revenue').textContent = fmtTZS(d.stats ? d.stats.revenue_today : 0);
     var el = document.getElementById('today-log');
     var orders = d.paid_orders || [];
     if(!orders.length){ el.innerHTML = '<p class="empty">' + st('noSales') + '</p>'; return; }
