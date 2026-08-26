@@ -907,9 +907,9 @@ const SFX=(()=>{
 })();
 
 // ── UTILS ──────────────────────────────────────────────────────
-const fmtTZS=n=>'TZS '+Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0});
-const fmtDT=d=>d?new Date(d).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
-const fmtTime=d=>d?new Date(d).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—';
+const fmtTZS=n=>{var s=Math.round(Number(n)||0).toString();return 'TZS '+s.replace(/\B(?=(\d{3})+(?!\d))/g,',');};
+const fmtDT=d=>{if(!d)return'—';var dt=new Date(d);if(isNaN(dt.getTime()))return'—';var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return dt.getDate().toString().padStart(2,'0')+' '+mo[dt.getMonth()]+' '+dt.getFullYear()+', '+dt.getHours().toString().padStart(2,'0')+':'+dt.getMinutes().toString().padStart(2,'0');};
+const fmtTime=d=>{if(!d)return'—';var dt=new Date(d);if(isNaN(dt.getTime()))return'—';return dt.getHours().toString().padStart(2,'0')+':'+dt.getMinutes().toString().padStart(2,'0');};
 const age=d=>{const m=Math.floor((Date.now()-new Date(d))/60000);return m<1?'Just now':m<60?m+'m ago':Math.floor(m/60)+'h '+m%60+'m ago';};
 
 function platesOverdue(o){
@@ -1907,10 +1907,11 @@ function escHtml(s) {
 }
 function fmtChatTime(iso) {
   if (!iso) return '';
-  const d = new Date(iso), now = new Date();
-  return d.toDateString() === now.toDateString()
-    ? d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
-    : d.toLocaleDateString([], {month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  var d = new Date(iso), now = new Date();
+  var hhmm = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+  if (d.toDateString() === now.toDateString()) return hhmm;
+  var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return mo[d.getMonth()]+' '+d.getDate()+' '+hhmm;
 }
 function roleChatColor(r) {
   return {Admin:'#D4AF37',Cashier:'#90caf9',Waiter:'#a5d6a7',Kitchen:'#ffb74d'}[r] || '#aaa';
