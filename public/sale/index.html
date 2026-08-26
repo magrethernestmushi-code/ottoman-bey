@@ -303,7 +303,7 @@ var DRAFT_KEY = 'sale_draft_v2';
 var WAITERS = [];
 
 function fmtTZS(n){ return 'TZS ' + Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0}); }
-function fmtTime(d){ return d ? new Date(d).toLocaleTimeString('sw-TZ',{hour:'2-digit',minute:'2-digit'}) : '—'; }
+function fmtTime(d){ if(!d) return '—'; try{ return new Date(d).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }catch(_){ return new Date(d).toTimeString().slice(0,5); } }
 
 function toast(msg, ms){
   var el = document.getElementById('toast');
