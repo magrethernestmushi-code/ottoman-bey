@@ -302,8 +302,18 @@ var TOKEN = '', SESSION = null, LINES = [], SELECTED_WAITER = null, PAY_METHOD =
 var DRAFT_KEY = 'sale_draft_v2';
 var WAITERS = [];
 
-function fmtTZS(n){ return 'TZS ' + Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0}); }
-function fmtTime(d){ if(!d) return '—'; try{ return new Date(d).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }catch(_){ return new Date(d).toTimeString().slice(0,5); } }
+function fmtTZS(n){
+  var s = Math.round(Number(n)||0).toString();
+  return 'TZS ' + s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+function fmtTime(d){
+  if(!d) return '—';
+  var dt = new Date(d);
+  if(isNaN(dt.getTime())) return '—';
+  var h = dt.getHours().toString().padStart(2,'0');
+  var m = dt.getMinutes().toString().padStart(2,'0');
+  return h + ':' + m;
+}
 
 function toast(msg, ms){
   var el = document.getElementById('toast');
