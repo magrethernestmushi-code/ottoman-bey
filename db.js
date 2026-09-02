@@ -163,9 +163,25 @@ async function initStorage() {
       _mongoClient = new MongoClient(uri, { serverSelectionTimeoutMS: 8000 });
       await _mongoClient.connect();
       _mongoCollection = _mongoClient.db(MONGO_DB_NAME).collection(MONGO_COLLECTION);
+      // IMPORTANT: this read must stay inside the same try/catch as connect(),
+      // with an explicit maxTimeMS. Previously it sat outside the try/catch
+      // with no timeout at all, so a slow/stuck Atlas response (not just a
+      // hard connection failure) could hang this promise forever — and since
+      // server.listen() below only runs after initStorage() resolves, the
+      // whole server would never start accepting requests, with nothing
+      // printed to the logs to explain why. Wrapping it here + timing it out
+      // guarantees initStorage() always settles one way or another.
+      const doc = await _mongoCollection.findOne({ _id: MONGO_DOC_ID }, { maxTimeMS: 8000 });
+      if (doc) {
+        delete doc._id;
+        _DB = migrateDB(doc);
+      } else {
+        _DB = seedDB();
+        await persistToMongo();
+      }
       console.log('db: connected to MongoDB — data will persist permanently.');
     } catch (e) {
-      console.error('db: could not connect to MongoDB, falling back to local file storage.', e.message);
+      console.error('db: could not reach/read MongoDB in time, falling back to local file storage for this run.', e.message);
       _mongoCollection = null;
     }
   } else {
@@ -174,16 +190,7 @@ async function initStorage() {
       'Set MONGODB_URI to a free MongoDB Atlas cluster for permanent storage.');
   }
 
-  if (_mongoCollection) {
-    const doc = await _mongoCollection.findOne({ _id: MONGO_DOC_ID });
-    if (doc) {
-      delete doc._id;
-      _DB = migrateDB(doc);
-    } else {
-      _DB = seedDB();
-      await persistToMongo();
-    }
-  } else {
+  if (!_mongoCollection) {
     try {
       if (fs.existsSync(DATA_FILE)) {
         _DB = migrateDB(JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')));

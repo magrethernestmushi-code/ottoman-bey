@@ -235,9 +235,21 @@ app.get('/sale', (req, res) => res.sendFile(path.join(__dirname, 'public/sale/in
 io.on('connection', () => {});
 
 const PORT = process.env.PORT || 3000;
-initStorage().then(() => {
+
+// Safety net: initStorage() should always resolve or reject on its own
+// (see db.js), but if anything ever hangs it in the future, this hard
+// 15s ceiling guarantees the server still starts and starts accepting
+// requests instead of sitting silently unresponsive forever.
+function withStartupTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('initStorage timed out after ' + ms + 'ms')), ms))
+  ]);
+}
+
+withStartupTimeout(initStorage(), 25000).then(() => {
   server.listen(PORT, () => console.log('Ottoman Bey POS server listening on port ' + PORT));
 }).catch(err => {
-  console.error('Fatal: could not initialize storage', err);
-  process.exit(1);
+  console.error('db: startup init did not complete in time (' + err.message + '); starting anyway on local storage so the site stays reachable.');
+  server.listen(PORT, () => console.log('Ottoman Bey POS server listening on port ' + PORT + ' (fallback mode)'));
 });
