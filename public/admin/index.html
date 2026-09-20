@@ -2629,7 +2629,8 @@ async function renderExpenses(){
     </div>
   </div>`;
   const today=new Date().toISOString().slice(0,10);
-  document.getElementById('exp-from').value=today;
+  const weekAgo=new Date(Date.now()-7*24*60*60*1000).toISOString().slice(0,10);
+  document.getElementById('exp-from').value=weekAgo;
   document.getElementById('exp-to').value=today;
   await loadExpenses();
 }
@@ -2690,6 +2691,7 @@ async function deleteExpense(id){
 async function renderSettlement(){
   const el=document.getElementById('pg-settlement');
   const today=new Date().toISOString().slice(0,10);
+  const weekAgo=new Date(Date.now()-7*24*60*60*1000).toISOString().slice(0,10);
   el.innerHTML=`
   <div class="page-hd flex-b"><div class="page-title">${t('stl.title')}</div></div>
   <div style="padding:14px;max-width:700px;margin:0 auto">
@@ -2697,7 +2699,7 @@ async function renderSettlement(){
       <div class="card-hd flex-b">
         <span class="card-hd-title">${t('stl.range')}</span>
         <div class="flex gap-8 ai-c">
-          <input class="input" type="date" id="stl-from" value="${today}" style="width:135px">
+          <input class="input" type="date" id="stl-from" value="${weekAgo}" style="width:135px">
           <input class="input" type="date" id="stl-to" value="${today}" style="width:135px">
           <button class="btn btn-gold btn-sm" onclick="loadSettlement()">${t('stl.view')}</button>
         </div>
@@ -2826,6 +2828,8 @@ async function loadReconciliation(){
 async function renderHistory(){
   const el = document.getElementById('pg-history');
   const today = new Date().toISOString().slice(0,10);
+  // Default view: last 7 days so past entries are immediately visible
+  const weekAgo = new Date(Date.now()-7*24*60*60*1000).toISOString().slice(0,10);
   el.innerHTML = `
   <div class="page-hd flex-b"><div class="page-title">📅 ${LANG==='sw'?'Data ya Nyuma':'Historical Entry'}</div></div>
   <div style="padding:14px;max-width:700px;margin:0 auto">
@@ -2877,7 +2881,7 @@ async function renderHistory(){
       <div class="card-hd flex-b">
         <span class="card-hd-title">📋 ${LANG==='sw'?'Rekodi':'Records'}</span>
         <div class="flex gap-8 ai-c">
-          <input class="input" type="date" id="hv-from" value="${today}" style="width:135px">
+          <input class="input" type="date" id="hv-from" value="${weekAgo}" style="width:135px">
           <input class="input" type="date" id="hv-to" value="${today}" style="width:135px">
           <button class="btn btn-dark btn-sm" onclick="loadHistoryView()">🔍</button>
         </div>
