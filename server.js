@@ -152,6 +152,10 @@ app.get('/api/expenses', handle(req => LOCAL.getExpenses(req.session, req.query.
 app.post('/api/expenses', handle(req => LOCAL.addExpense(req.session, req.body)));
 app.put('/api/expenses/:id', handle(req => LOCAL.updateExpense(req.session, req.params.id, req.body)));
 app.delete('/api/expenses/:id', handle(req => LOCAL.deleteExpense(req.session, req.params.id)));
+// Manual revenue (Admin only — historical/offline revenue entry)
+app.get('/api/manual-revenue', handle(req => LOCAL.getManualRevenue(req.session, req.query.from, req.query.to)));
+app.post('/api/manual-revenue', handle(req => LOCAL.addManualRevenue(req.session, req.body)));
+app.delete('/api/manual-revenue/:id', handle(req => LOCAL.deleteManualRevenue(req.session, req.params.id)));
 
 // ── attendance ────────────────────────────────────────────────────────
 app.post('/api/attendance/clock-in', handle(req => LOCAL.clockIn(req.session)));
