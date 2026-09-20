@@ -415,6 +415,9 @@
       <!-- ══ RECONCILIATION ══ (Admin only) -->
       <div class="page" id="pg-reconciliation"></div>
 
+      <!-- ══ HISTORICAL ENTRY ══ (Admin only) -->
+      <div class="page" id="pg-history"></div>
+
       <!-- ══ ADMIN: ROLE STATS ══ -->
       <!-- renderRoleStats() fills this container dynamically with per-role tables -->
       <div class="page" id="pg-admin-roles"></div>
@@ -627,7 +630,7 @@ const TRANSLATIONS = {
     'empty.noOrders':'No orders here','empty.noItems':'No items found',
     'empty.noStaff':'No staff found',
     // Nav — new screens
-    'nav.expenses':'Expenses','nav.settlement':'Settlement','nav.reconciliation':'Audit',
+    'nav.expenses':'Expenses','nav.settlement':'Settlement','nav.reconciliation':'Audit','nav.history':'History',
     // Expenses page
     'exp.title':'💸 Operational Expenses','exp.addNew':'➕ Add New Expense',
     'exp.selectCat':'-- Select Category --','exp.descPH':'Description (optional)',
@@ -783,7 +786,7 @@ const TRANSLATIONS = {
     'empty.noOrders':'Hakuna maagizo hapa','empty.noItems':'Hakuna vipengee',
     'empty.noStaff':'Hakuna wafanyakazi',
     // Nav — new screens
-    'nav.expenses':'Gharama','nav.settlement':'Hesabu','nav.reconciliation':'Rekodi',
+    'nav.expenses':'Gharama','nav.settlement':'Hesabu','nav.reconciliation':'Rekodi','nav.history':'Historia',
     // Expenses page
     'exp.title':'💸 Gharama za Uendeshaji','exp.addNew':'➕ Ongeza Gharama Mpya',
     'exp.selectCat':'-- Chagua Aina --','exp.descPH':'Maelezo (si lazima)',
@@ -1048,6 +1051,7 @@ function getNavs(){
       {p:'pg-expenses',      i:'💸', l:t('nav.expenses')},
       {p:'pg-settlement',    i:'🧾', l:t('nav.settlement')},
       {p:'pg-reconciliation',i:'🔍', l:t('nav.reconciliation')},
+      {p:'pg-history',       i:'📅', l:t('nav.history')},
       {p:'pg-admin-roles',   i:'📊', l:t('nav.roleStats')},
       {p:'pg-attendance',    i:'🕒', l:t('nav.attendance')},
       {p:'pg-admin-settings',i:'⚙️', l:t('nav.settings')},
@@ -1119,6 +1123,7 @@ function renderPage(pid){
     'pg-expenses':       renderExpenses,
     'pg-settlement':     renderSettlement,
     'pg-reconciliation': renderReconciliation,
+    'pg-history':        renderHistory,
     'pg-admin-roles':    renderRoleStats,
     'pg-admin-settings': renderAdminSettings,
     'pg-attendance':     renderAttendance,
@@ -2813,6 +2818,158 @@ async function loadReconciliation(){
         </div>
       </div>`:''}`;
   }catch(err){el.innerHTML=`<div style="color:#EF9A9A;padding:14px">Error: ${err.message}</div>`;}
+}
+
+// ══════════════════════════════════════════════════════════════
+// HISTORICAL ENTRY — backdate revenue and expenses (Admin only)
+// ══════════════════════════════════════════════════════════════
+async function renderHistory(){
+  const el = document.getElementById('pg-history');
+  const today = new Date().toISOString().slice(0,10);
+  el.innerHTML = `
+  <div class="page-hd flex-b"><div class="page-title">📅 ${LANG==='sw'?'Data ya Nyuma':'Historical Entry'}</div></div>
+  <div style="padding:14px;max-width:700px;margin:0 auto">
+    <div class="card mb-16">
+      <div class="card-hd"><span class="card-hd-title">💰 ${LANG==='sw'?'Ongeza Mapato ya Nyuma':'Add Past Revenue'}</span></div>
+      <div class="card-bd" style="display:grid;gap:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><div class="form-lbl">${LANG==='sw'?'Tarehe':'Date'}</div><input class="input" type="date" id="hr-date" value="${today}"></div>
+          <div><div class="form-lbl">${LANG==='sw'?'Mlo':'Session'}</div>
+          <select class="select" id="hr-session">
+            <option value="Breakfast">${LANG==='sw'?'Kiamsha Kinywa':'Breakfast'}</option>
+            <option value="Lunch" selected>${LANG==='sw'?'Mchana':'Lunch'}</option>
+            <option value="Dinner">${LANG==='sw'?'Jioni':'Dinner'}</option>
+          </select></div>
+        </div>
+        <input class="input" type="number" id="hr-amount" placeholder="${LANG==='sw'?'Kiasi (TZS)':'Revenue Amount (TZS)'}" min="1">
+        <input class="input" id="hr-desc" placeholder="${LANG==='sw'?'Maelezo (si lazima)':'Description (optional)'}">
+        <button class="btn btn-gold btn-block" onclick="submitManualRevenue()">💾 ${LANG==='sw'?'Hifadhi Mapato':'Save Revenue'}</button>
+        <div id="hr-msg" style="text-align:center;font-size:.85rem;min-height:18px"></div>
+      </div>
+    </div>
+    <div class="card mb-16">
+      <div class="card-hd"><span class="card-hd-title">💸 ${LANG==='sw'?'Ongeza Gharama za Nyuma':'Add Past Expense'}</span></div>
+      <div class="card-bd" style="display:grid;gap:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><div class="form-lbl">${LANG==='sw'?'Tarehe':'Date'}</div><input class="input" type="date" id="he-date" value="${today}"></div>
+          <div><div class="form-lbl">${LANG==='sw'?'Aina':'Category'}</div>
+          <select class="select" id="he-cat">
+            <option value="Supplies Purchase" selected>${LANG==='sw'?'Manunuzi':'Supplies'}</option>
+            <option value="Staff Wages">${LANG==='sw'?'Mishahara':'Staff Wages'}</option>
+            <option value="Gas / Charcoal">${LANG==='sw'?'Gesi/Makaa':'Gas/Charcoal'}</option>
+            <option value="Electricity">${LANG==='sw'?'Umeme':'Electricity'}</option>
+            <option value="Water">${LANG==='sw'?'Maji':'Water'}</option>
+            <option value="Transport">${LANG==='sw'?'Nauli':'Transport'}</option>
+            <option value="Maintenance">${LANG==='sw'?'Matengenezo':'Maintenance'}</option>
+            <option value="Rent">${LANG==='sw'?'Pango':'Rent'}</option>
+            <option value="Other">${LANG==='sw'?'Nyingine':'Other'}</option>
+          </select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <input class="input" type="number" id="he-amount" placeholder="${LANG==='sw'?'Kiasi (TZS)':'Amount (TZS)'}" min="1">
+          <input class="input" id="he-desc" placeholder="${LANG==='sw'?'Maelezo':'Description'}">
+        </div>
+        <button class="btn btn-gold btn-block" onclick="submitHistoricalExpense()">💾 ${LANG==='sw'?'Hifadhi Gharama':'Save Expense'}</button>
+        <div id="he-msg" style="text-align:center;font-size:.85rem;min-height:18px"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd flex-b">
+        <span class="card-hd-title">📋 ${LANG==='sw'?'Rekodi':'Records'}</span>
+        <div class="flex gap-8 ai-c">
+          <input class="input" type="date" id="hv-from" value="${today}" style="width:135px">
+          <input class="input" type="date" id="hv-to" value="${today}" style="width:135px">
+          <button class="btn btn-dark btn-sm" onclick="loadHistoryView()">🔍</button>
+        </div>
+      </div>
+      <div id="hv-list" class="card-bd"></div>
+    </div>
+  </div>`;
+  await loadHistoryView();
+}
+async function submitManualRevenue(){
+  const date=document.getElementById('hr-date').value;
+  const session=document.getElementById('hr-session').value;
+  const amount=document.getElementById('hr-amount').value;
+  const desc=document.getElementById('hr-desc').value.trim();
+  const msg=document.getElementById('hr-msg');
+  if(!amount||Number(amount)<=0){msg.style.color='#EF9A9A';msg.textContent=LANG==='sw'?'Weka kiasi sahihi':'Enter a valid amount';return;}
+  msg.style.color='var(--gray2)';msg.textContent=LANG==='sw'?'Inahifadhi…':'Saving…';
+  try{
+    await API.apiFetch('/api/manual-revenue',{method:'POST',body:JSON.stringify({date,session,amount:Number(amount),description:desc})});
+    document.getElementById('hr-amount').value='';
+    document.getElementById('hr-desc').value='';
+    msg.style.color='#69F0AE';msg.textContent='✅ '+(LANG==='sw'?'Mapato yamehifadhiwa!':'Revenue saved!');
+    setTimeout(()=>{msg.textContent='';},2500);
+    await loadHistoryView();
+  }catch(e){msg.style.color='#EF9A9A';msg.textContent='Error: '+e.message;}
+}
+async function submitHistoricalExpense(){
+  const date=document.getElementById('he-date').value;
+  const cat=document.getElementById('he-cat').value;
+  const amount=document.getElementById('he-amount').value;
+  const desc=document.getElementById('he-desc').value.trim();
+  const msg=document.getElementById('he-msg');
+  if(!amount||Number(amount)<=0){msg.style.color='#EF9A9A';msg.textContent=LANG==='sw'?'Weka kiasi sahihi':'Enter a valid amount';return;}
+  msg.style.color='var(--gray2)';msg.textContent=LANG==='sw'?'Inahifadhi…':'Saving…';
+  try{
+    await API.apiFetch('/api/expenses',{method:'POST',body:JSON.stringify({date,category:cat,amount:Number(amount),description:desc})});
+    document.getElementById('he-amount').value='';
+    document.getElementById('he-desc').value='';
+    msg.style.color='#69F0AE';msg.textContent='✅ '+(LANG==='sw'?'Gharama imehifadhiwa!':'Expense saved!');
+    setTimeout(()=>{msg.textContent='';},2500);
+    await loadHistoryView();
+  }catch(e){msg.style.color='#EF9A9A';msg.textContent='Error: '+e.message;}
+}
+async function loadHistoryView(){
+  const f=document.getElementById('hv-from').value;
+  const tv=document.getElementById('hv-to').value;
+  const el=document.getElementById('hv-list');
+  if(!el)return;
+  el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray)">${LANG==='sw'?'Inapakia…':'Loading…'}</div>`;
+  try{
+    const [rev,exp]=await Promise.all([
+      API.apiFetch(`/api/manual-revenue?from=${f}&to=${tv}`),
+      API.apiFetch(`/api/expenses?from=${f}&to=${tv}`)
+    ]);
+    const re=(rev.entries||[]),ex=(exp.expenses||[]);
+    if(!re.length&&!ex.length){el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray)">${LANG==='sw'?'Hakuna rekodi':'No records found'}</div>`;return;}
+    const totalRev=re.reduce((s,r)=>s+r.amount,0);
+    const totalExp=ex.reduce((s,e)=>s+e.amount,0);
+    el.innerHTML=`
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:10px">
+        <span style="color:#69F0AE;font-weight:700">💰 ${fmtTZS(totalRev)}</span>
+        <span style="color:#EF9A9A;font-weight:700">💸 ${fmtTZS(totalExp)}</span>
+        <span style="font-weight:800;color:${totalRev-totalExp>=0?'#69F0AE':'#EF9A9A'}">= ${fmtTZS(totalRev-totalExp)}</span>
+      </div>
+      ${re.map(r=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+        <div>
+          <div style="font-weight:700;color:#69F0AE">💰 ${r.session} — ${r.date}</div>
+          ${r.description?`<div style="font-size:.78rem;color:var(--gray2)">${r.description}</div>`:''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-weight:800;color:#69F0AE">${fmtTZS(r.amount)}</span>
+          <button class="btn btn-danger btn-sm" onclick="deleteManualRevenue('${r.id}')">🗑️</button>
+        </div>
+      </div>`).join('')}
+      ${ex.map(e=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+        <div>
+          <div style="font-weight:700;color:#EF9A9A">💸 ${e.category} — ${e.date}</div>
+          ${e.description?`<div style="font-size:.78rem;color:var(--gray2)">${e.description}</div>`:''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-weight:800;color:#EF9A9A">${fmtTZS(e.amount)}</span>
+          <button class="btn btn-danger btn-sm" onclick="deleteExpense('${e.id}')">🗑️</button>
+        </div>
+      </div>`).join('')}`;
+  }catch(e){el.innerHTML=`<div style="color:#EF9A9A;padding:14px">Error: ${e.message}</div>`;}
+}
+async function deleteManualRevenue(id){
+  if(!confirm(LANG==='sw'?'Futa rekodi hii?':'Delete this entry?'))return;
+  try{await API.apiFetch(`/api/manual-revenue/${id}`,{method:'DELETE'});await loadHistoryView();}
+  catch(e){alert('Error: '+e.message);}
 }
 </script>
 </body>
