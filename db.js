@@ -129,6 +129,7 @@ function migrateDB(db) {
   db.chat = db.chat || [];
   db.sessions = db.sessions || {}; // token -> session, persisted so a server restart doesn't log everyone out mid-shift
   db.expenses = db.expenses || [];
+  db.manual_revenue = db.manual_revenue || [];
   db.stock_log = db.stock_log || [];
   db.stock_audits = db.stock_audits || [];
   db._seq = db._seq || {};
@@ -1024,11 +1025,13 @@ LOCAL.addExpense = (sess, body) => {
   const amount = Number(body.amount);
   if (!category) throw new HttpError(400, 'Chagua aina ya gharama');
   if (!amount || amount <= 0) throw new HttpError(400, 'Kiasi si sahihi');
+  // Admin can backdate expenses; Cashiers always get today's date.
+  const expDate = (sess.role === 'Admin' && body.date) ? String(body.date) : todayStr();
   const db = loadDB();
   const exp = {
     id: uuid(), category, description, amount: round2(amount),
     recorded_by: sess.id, recorded_by_name: sess.name, recorded_by_role: sess.role,
-    date: todayStr(), created_at: nowISO()
+    date: expDate, created_at: nowISO()
   };
   db.expenses.push(exp);
   saveDB();
@@ -1180,12 +1183,15 @@ LOCAL.getSettlement = (sess, from, to) => {
   const f = from || today, t = to || today;
   let paidOrders = db.orders.filter(o => o.status === 'paid' && dateOf(o.created_at) >= f && dateOf(o.created_at) <= t);
   let expenses = db.expenses.filter(e => e.date >= f && e.date <= t);
-  // Same pattern as reports: a Cashier sees their own till only, Admin sees everything.
+  let manualRevenue = (db.manual_revenue || []).filter(r => r.date >= f && r.date <= t);
   if (sess.role === 'Cashier') {
     paidOrders = paidOrders.filter(o => o.cashier_id === sess.id);
     expenses = expenses.filter(e => e.recorded_by === sess.id);
+    manualRevenue = [];
   }
-  const revenue = round2(paidOrders.reduce((s, o) => s + o.total_amount, 0));
+  const ordersRevenue = round2(paidOrders.reduce((s, o) => s + o.total_amount, 0));
+  const manualRevenueTotal = round2(manualRevenue.reduce((s, r) => s + r.amount, 0));
+  const revenue = round2(ordersRevenue + manualRevenueTotal);
   const expensesTotal = round2(expenses.reduce((s, e) => s + e.amount, 0));
   const byCategory = {};
   expenses.forEach(e => {
@@ -1195,10 +1201,50 @@ LOCAL.getSettlement = (sess, from, to) => {
   });
   return {
     from: f, to: t,
-    revenue, expenses: expensesTotal,
+    revenue, orders_revenue: ordersRevenue, manual_revenue: manualRevenueTotal,
+    expenses: expensesTotal,
     net_balance: round2(revenue - expensesTotal),
-    expense_breakdown: Object.values(byCategory)
+    expense_breakdown: Object.values(byCategory),
+    manual_revenue_entries: manualRevenue
   };
+};
+
+// ── Manual Revenue Entry (Admin only — for historical/offline revenue) ──
+LOCAL.getManualRevenue = (sess, from, to) => {
+  requireRole(sess, 'Admin');
+  const db = loadDB();
+  const today = todayStr();
+  const f = from || today, t = to || today;
+  const list = (db.manual_revenue || []).filter(r => r.date >= f && r.date <= t)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
+  return { entries: list, total: round2(list.reduce((s, r) => s + r.amount, 0)) };
+};
+LOCAL.addManualRevenue = (sess, body) => {
+  requireRole(sess, 'Admin');
+  body = body || {};
+  const amount = Number(body.amount);
+  const date = String(body.date || todayStr());
+  const session = String(body.session || '').trim(); // Breakfast / Lunch / Dinner
+  const description = String(body.description || '').trim();
+  if (!amount || amount <= 0) throw new HttpError(400, 'Weka kiasi sahihi');
+  if (!date.match(/^\d{4}-\d{2}-\d{2}$/)) throw new HttpError(400, 'Tarehe si sahihi (YYYY-MM-DD)');
+  const db = loadDB();
+  if (!db.manual_revenue) db.manual_revenue = [];
+  const entry = {
+    id: uuid(), amount: round2(amount), date, session, description,
+    recorded_by: sess.id, recorded_by_name: sess.name, created_at: nowISO()
+  };
+  db.manual_revenue.push(entry);
+  saveDB();
+  return { ok: true, entry };
+};
+LOCAL.deleteManualRevenue = (sess, id) => {
+  requireRole(sess, 'Admin');
+  const db = loadDB();
+  if (!db.manual_revenue) return { ok: true };
+  const idx = db.manual_revenue.findIndex(r => r.id === id);
+  if (idx !== -1) { db.manual_revenue.splice(idx, 1); saveDB(); }
+  return { ok: true };
 };
 
 // ── attendance (clock in / clock out) ───────────────────────────────
