@@ -145,6 +145,39 @@ function migrateDB(db) {
   return db;
 }
 
+// ── One-time historical data seed for Sep 17-19 2026 ────────────
+// Called from initStorage() after every DB load so it works with
+// both MongoDB (persistent) and local file storage (ephemeral).
+// The _seeded_sep2026 flag prevents it running more than once.
+function seedHistoricalSep2026(db) {
+  if (db._seeded_sep2026) return false;
+  const adminId = (db.staff || []).find(s => s.username === 'superadmin')?.id || 'system';
+  if (!db.manual_revenue) db.manual_revenue = [];
+  if (!db.expenses) db.expenses = [];
+  [
+    { date:'2026-09-17', session:'Breakfast', amount:70000, description:'Breakfast 17 Sep' },
+    { date:'2026-09-17', session:'Lunch',     amount:92000, description:'Lunch 17 Sep'     },
+    { date:'2026-09-18', session:'Breakfast', amount:55000, description:'Breakfast 18 Sep' },
+    { date:'2026-09-18', session:'Lunch',     amount:80000, description:'Lunch 18 Sep'     },
+    { date:'2026-09-19', session:'Breakfast', amount:55000, description:'Breakfast 19 Sep' },
+    { date:'2026-09-19', session:'Lunch',     amount:80000, description:'Lunch 19 Sep'     },
+  ].forEach(r => db.manual_revenue.push(
+    { id: uuid(), recorded_by: adminId, recorded_by_name:'Admin', created_at: nowISO(), ...r }
+  ));
+  [
+    { date:'2026-09-17', category:'Supplies Purchase', amount:61700, description:'Breakfast expenses 17 Sep' },
+    { date:'2026-09-17', category:'Supplies Purchase', amount:68100, description:'Lunch expenses 17 Sep'     },
+    { date:'2026-09-18', category:'Supplies Purchase', amount:19800, description:'Breakfast expenses 18 Sep' },
+    { date:'2026-09-18', category:'Supplies Purchase', amount:41600, description:'Lunch expenses 18 Sep'     },
+    { date:'2026-09-19', category:'Supplies Purchase', amount:61500, description:'Breakfast expenses 19 Sep' },
+  ].forEach(e => db.expenses.push(
+    { id: uuid(), recorded_by: adminId, recorded_by_name:'Admin', recorded_by_role:'Admin', created_at: nowISO(), ...e }
+  ));
+  db._seeded_sep2026 = true;
+  console.log('db: seeded Sep 17-19 2026 — 6 revenue + 5 expense entries');
+  return true;
+}
+
 // ── load / save ──────────────────────────────────────────────────
 // Two storage modes:
 //  1. MONGODB_URI set  -> permanent storage in MongoDB Atlas (survives
@@ -180,6 +213,7 @@ async function initStorage() {
         _DB = seedDB();
         await persistToMongo();
       }
+      if (seedHistoricalSep2026(_DB)) await persistToMongo();
       console.log('db: connected to MongoDB — data will persist permanently.');
     } catch (e) {
       console.error('db: could not reach/read MongoDB in time, falling back to local file storage for this run.', e.message);
@@ -197,11 +231,13 @@ async function initStorage() {
         _DB = migrateDB(JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')));
       } else {
         _DB = seedDB();
-        saveDB();
       }
+      if (seedHistoricalSep2026(_DB)) saveDB();
+      else if (!fs.existsSync(DATA_FILE)) saveDB();
     } catch (e) {
       console.error('db: failed to load data.json, reseeding', e);
       _DB = seedDB();
+      seedHistoricalSep2026(_DB);
       saveDB();
     }
   }
