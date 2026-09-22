@@ -74,6 +74,28 @@
     deleteStaff: function (id) { return apiCall('DELETE', '/api/staff/' + id); },
     getRoles: function () { return apiCall('GET', '/api/roles'); },
     getReports: function (from, to) { return apiCall('GET', '/api/reports' + qs({ from: from, to: to })); },
+    // Generic fetch for new endpoints — wraps apiCall so new screens don't need raw fetch()
+    apiFetch: function (urlPath, opts) {
+      var o = opts || {};
+      var method = (o.method || 'GET').toUpperCase();
+      var body;
+      if (o.body) { try { body = JSON.parse(o.body); } catch (e) { body = o.body; } }
+      return apiCall(method, urlPath, body);
+    },
+    // Expenses
+    getExpenses: function (from, to) { return apiCall('GET', '/api/expenses' + qs({ from: from, to: to })); },
+    addExpense: function (body) { return apiCall('POST', '/api/expenses', body); },
+    deleteExpense: function (id) { return apiCall('DELETE', '/api/expenses/' + id); },
+    // Settlement
+    getSettlement: function (from, to) { return apiCall('GET', '/api/settlement' + qs({ from: from, to: to })); },
+    // Manual revenue
+    getManualRevenue: function (from, to) { return apiCall('GET', '/api/manual-revenue' + qs({ from: from, to: to })); },
+    addManualRevenue: function (body) { return apiCall('POST', '/api/manual-revenue', body); },
+    deleteManualRevenue: function (id) { return apiCall('DELETE', '/api/manual-revenue/' + id); },
+    // Reconciliation & stock
+    getReconciliation: function (date) { return apiCall('GET', '/api/reconciliation' + qs({ date: date })); },
+    getStockAudits: function () { return apiCall('GET', '/api/stock-audits'); },
+    getStockLog: function () { return apiCall('GET', '/api/stock-log'); },
     getMenu: function () { return apiCall('GET', '/api/menu'); },
     getCats: function () { return apiCall('GET', '/api/categories'); },
     createMenu: function (body) { return apiCall('POST', '/api/menu', body); },
