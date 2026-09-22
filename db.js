@@ -1235,13 +1235,31 @@ LOCAL.getSettlement = (sess, from, to) => {
     byCategory[e.category].total = round2(byCategory[e.category].total + e.amount);
     byCategory[e.category].count += 1;
   });
+
+  // Daily breakdown — collect all unique dates in range then sum per day
+  const allDates = new Set([
+    ...paidOrders.map(o => dateOf(o.created_at)),
+    ...manualRevenue.map(r => r.date),
+    ...expenses.map(e => e.date)
+  ]);
+  const daily = Array.from(allDates).sort().map(date => {
+    const dayRev = round2(
+      paidOrders.filter(o => dateOf(o.created_at) === date).reduce((s, o) => s + o.total_amount, 0) +
+      manualRevenue.filter(r => r.date === date).reduce((s, r) => s + r.amount, 0)
+    );
+    const dayExp = round2(expenses.filter(e => e.date === date).reduce((s, e) => s + e.amount, 0));
+    const sessions = manualRevenue.filter(r => r.date === date).map(r => ({ session: r.session, amount: r.amount }));
+    return { date, revenue: dayRev, expenses: dayExp, net: round2(dayRev - dayExp), sessions };
+  });
+
   return {
     from: f, to: t,
     revenue, orders_revenue: ordersRevenue, manual_revenue: manualRevenueTotal,
     expenses: expensesTotal,
     net_balance: round2(revenue - expensesTotal),
     expense_breakdown: Object.values(byCategory),
-    manual_revenue_entries: manualRevenue
+    manual_revenue_entries: manualRevenue,
+    daily
   };
 };
 
