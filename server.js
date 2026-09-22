@@ -231,6 +231,17 @@ app.get('/api/backup', handle(req => LOCAL.exportBackup(req.session)));
 app.post('/api/backup', handle(req => LOCAL.importBackup(req.session, req.body)));
 
 // ── static frontend ──────────────────────────────────────────────────
+// HTML pages must never be cached — forces browser to always fetch fresh
+// JS/CSS/images can use the default (etag-based) caching
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html') || req.path === '/' ||
+      req.path.endsWith('/admin') || req.path.endsWith('/sale') || req.path.endsWith('/staff')) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/staff', (req, res) => res.sendFile(path.join(__dirname, 'public/staff/index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public/admin/index.html')));
