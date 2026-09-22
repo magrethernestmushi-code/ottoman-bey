@@ -2640,7 +2640,7 @@ async function loadExpenses(){
   const el=document.getElementById('exp-list');
   el.innerHTML=`<div style="text-align:center;padding:20px;color:var(--gray)">${t('exp.loading')}</div>`;
   try{
-    const d=await API.apiFetch(`/api/expenses?from=${f}&to=${tv}`);
+    const d=await API.getExpenses(f,tv);
     if(!d.expenses||!d.expenses.length){el.innerHTML=`<div style="text-align:center;padding:20px;color:var(--gray)">${t('exp.none')}</div>`;return;}
     el.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:10px 14px;background:rgba(212,175,55,.08);border-radius:8px">
@@ -2670,7 +2670,7 @@ async function submitExpense(){
   if(!amt||Number(amt)<=0){msg.style.color='#EF9A9A';msg.textContent=t('exp.errAmt');return;}
   msg.style.color='var(--gray2)';msg.textContent=t('exp.saving');
   try{
-    await API.apiFetch('/api/expenses',{method:'POST',body:JSON.stringify({category:cat,description:desc,amount:Number(amt)})});
+    await API.addExpense({category:cat,description:desc,amount:Number(amt)});
     document.getElementById('exp-cat').value='';
     document.getElementById('exp-desc').value='';
     document.getElementById('exp-amt').value='';
@@ -2681,7 +2681,7 @@ async function submitExpense(){
 }
 async function deleteExpense(id){
   if(!confirm(t('exp.delConfirm')))return;
-  try{await API.apiFetch(`/api/expenses/${id}`,{method:'DELETE'});await loadExpenses();}
+  try{await API.deleteExpense(id);await loadExpenses();}
   catch(err){alert('Error: '+err.message);}
 }
 
@@ -2715,41 +2715,55 @@ async function loadSettlement(){
   const el=document.getElementById('stl-view');
   el.innerHTML=`<div style="text-align:center;padding:30px;color:var(--gray)">${t('exp.loading')}</div>`;
   try{
-    const d=await API.apiFetch(`/api/settlement?from=${f}&to=${tv}`);
+    const d=await API.getSettlement(f,tv);
     const isProfit=d.net_balance>=0;
-    el.innerHTML=`
-      <div style="display:grid;gap:12px">
-        <div class="card">
-          <div class="card-bd" style="display:grid;gap:10px">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(105,240,174,.07);border-radius:8px;border:1px solid rgba(105,240,174,.2)">
-              <span style="font-weight:700">💰 ${t('stl.revenue')}</span>
-              <span style="font-weight:800;color:#69F0AE;font-size:1.1rem">${fmtTZS(d.revenue)}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(239,154,154,.07);border-radius:8px;border:1px solid rgba(239,154,154,.2)">
-              <span style="font-weight:700">💸 ${t('stl.expenses')}</span>
-              <span style="font-weight:800;color:#EF9A9A;font-size:1.1rem">${fmtTZS(d.expenses)}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px;border-radius:10px;border:2px solid ${isProfit?'rgba(105,240,174,.5)':'rgba(239,154,154,.5)'};background:${isProfit?'rgba(105,240,174,.1)':'rgba(239,154,154,.1)'}">
-              <span style="font-weight:800;font-size:1.1rem">${isProfit?'✅ '+t('stl.profit'):'⚠️ '+t('stl.loss')}</span>
-              <span style="font-weight:800;font-size:1.4rem;color:${isProfit?'#69F0AE':'#EF9A9A'}">${fmtTZS(d.net_balance)}</span>
-            </div>
-          </div>
+    // ── Totals bar ──
+    let html=`
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="background:rgba(105,240,174,.08);border:1px solid rgba(105,240,174,.2);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:.68rem;color:#9a8870;font-weight:700;margin-bottom:4px">${LANG==='sw'?'MAPATO YOTE':'TOTAL REVENUE'}</div>
+          <div style="font-weight:800;color:#69F0AE;font-size:.95rem">${fmtTZS(d.revenue)}</div>
         </div>
-        ${d.expense_breakdown&&d.expense_breakdown.length?`
-        <div class="card">
-          <div class="card-hd"><span class="card-hd-title">📂 ${t('stl.byCat')}</span></div>
-          <div class="card-bd" style="display:grid;gap:8px">
-            ${d.expense_breakdown.map(c=>`
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.06)">
-              <div>
-                <span style="font-weight:700">${c.category}</span>
-                <span style="margin-left:8px;font-size:.78rem;color:var(--gray2)">(${c.count} ${c.count===1?t('stl.rec'):t('stl.recs')})</span>
-              </div>
-              <span style="color:#EF9A9A;font-weight:700">${fmtTZS(c.total)}</span>
-            </div>`).join('')}
-          </div>
-        </div>`:''}
+        <div style="background:rgba(239,154,154,.08);border:1px solid rgba(239,154,154,.2);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:.68rem;color:#9a8870;font-weight:700;margin-bottom:4px">${LANG==='sw'?'GHARAMA ZOTE':'TOTAL EXPENSES'}</div>
+          <div style="font-weight:800;color:#EF9A9A;font-size:.95rem">${fmtTZS(d.expenses)}</div>
+        </div>
+        <div style="background:${isProfit?'rgba(105,240,174,.08)':'rgba(239,154,154,.08)'};border:2px solid ${isProfit?'rgba(105,240,174,.4)':'rgba(239,154,154,.4)'};border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:.68rem;color:#9a8870;font-weight:700;margin-bottom:4px">${LANG==='sw'?'BALANCE':'NET BALANCE'}</div>
+          <div style="font-weight:800;color:${isProfit?'#69F0AE':'#EF9A9A'};font-size:.95rem">${fmtTZS(d.net_balance)}</div>
+        </div>
       </div>`;
+    // ── Per-day breakdown ──
+    if(d.daily && d.daily.length){
+      html+=`<div class="card">
+        <div class="card-hd"><span class="card-hd-title">📅 ${LANG==='sw'?'Kila Siku':'Day by Day'}</span></div>
+        <div class="card-bd">`;
+      // Header row
+      html+=`<div style="display:grid;grid-template-columns:90px 1fr 1fr 1fr;gap:6px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:.7rem;color:var(--gray);font-weight:700;text-transform:uppercase">
+        <span>${LANG==='sw'?'Tarehe':'Date'}</span>
+        <span style="text-align:right">${LANG==='sw'?'Mapato':'Revenue'}</span>
+        <span style="text-align:right">${LANG==='sw'?'Gharama':'Expenses'}</span>
+        <span style="text-align:right">${LANG==='sw'?'Balance':'Balance'}</span>
+      </div>`;
+      d.daily.forEach(day=>{
+        const profit=day.net>=0;
+        const [yr,mo,dd]=day.date.split('-');
+        const label=dd+'/'+mo;
+        html+=`<div style="display:grid;grid-template-columns:90px 1fr 1fr 1fr;gap:6px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05);align-items:center">
+          <div>
+            <div style="font-weight:700;font-size:.88rem">${label}</div>
+            ${day.sessions&&day.sessions.length?day.sessions.map(s=>`<div style="font-size:.7rem;color:var(--gray2)">• ${s.session}</div>`).join(''):''}
+          </div>
+          <div style="text-align:right;color:#69F0AE;font-weight:700;font-size:.85rem">${fmtTZS(day.revenue)}</div>
+          <div style="text-align:right;color:#EF9A9A;font-weight:700;font-size:.85rem">${fmtTZS(day.expenses)}</div>
+          <div style="text-align:right;font-weight:800;font-size:.88rem;color:${profit?'#69F0AE':'#EF9A9A'}">${profit?'+':''}${fmtTZS(day.net)}</div>
+        </div>`;
+      });
+      html+=`</div></div>`;
+    } else {
+      html+=`<div style="text-align:center;padding:20px;color:var(--gray)">${LANG==='sw'?'Hakuna data kwa kipindi hiki':'No data for this period'}</div>`;
+    }
+    el.innerHTML=html;
   }catch(err){el.innerHTML=`<div style="color:#EF9A9A;padding:14px">Error: ${err.message}</div>`;}
 }
 
@@ -2780,7 +2794,7 @@ async function loadReconciliation(){
   const el=document.getElementById('rec-view');
   el.innerHTML=`<div style="text-align:center;padding:30px;color:var(--gray)">${t('exp.loading')}</div>`;
   try{
-    const d=await API.apiFetch(`/api/reconciliation?date=${date}`);
+    const d=await API.getReconciliation(date);
     if(!d.rows.length&&!d.unmatched_quick_sale_items.length){
       el.innerHTML=`<div style="text-align:center;padding:30px;color:var(--gray)">${t('rec.noData')}</div>`;return;
     }
@@ -2900,7 +2914,7 @@ async function submitManualRevenue(){
   if(!amount||Number(amount)<=0){msg.style.color='#EF9A9A';msg.textContent=LANG==='sw'?'Weka kiasi sahihi':'Enter a valid amount';return;}
   msg.style.color='var(--gray2)';msg.textContent=LANG==='sw'?'Inahifadhi…':'Saving…';
   try{
-    await API.apiFetch('/api/manual-revenue',{method:'POST',body:JSON.stringify({date,session,amount:Number(amount),description:desc})});
+    await API.addManualRevenue({date,session,amount:Number(amount),description:desc});
     document.getElementById('hr-amount').value='';
     document.getElementById('hr-desc').value='';
     msg.style.color='#69F0AE';msg.textContent='✅ '+(LANG==='sw'?'Mapato yamehifadhiwa!':'Revenue saved!');
@@ -2917,7 +2931,7 @@ async function submitHistoricalExpense(){
   if(!amount||Number(amount)<=0){msg.style.color='#EF9A9A';msg.textContent=LANG==='sw'?'Weka kiasi sahihi':'Enter a valid amount';return;}
   msg.style.color='var(--gray2)';msg.textContent=LANG==='sw'?'Inahifadhi…':'Saving…';
   try{
-    await API.apiFetch('/api/expenses',{method:'POST',body:JSON.stringify({date,category:cat,amount:Number(amount),description:desc})});
+    await API.addExpense({date,category:cat,amount:Number(amount),description:desc});
     document.getElementById('he-amount').value='';
     document.getElementById('he-desc').value='';
     msg.style.color='#69F0AE';msg.textContent='✅ '+(LANG==='sw'?'Gharama imehifadhiwa!':'Expense saved!');
@@ -2933,8 +2947,8 @@ async function loadHistoryView(){
   el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray)">${LANG==='sw'?'Inapakia…':'Loading…'}</div>`;
   try{
     const [rev,exp]=await Promise.all([
-      API.apiFetch(`/api/manual-revenue?from=${f}&to=${tv}`),
-      API.apiFetch(`/api/expenses?from=${f}&to=${tv}`)
+      API.getManualRevenue(f,tv),
+      API.getExpenses(f,tv)
     ]);
     const re=(rev.entries||[]),ex=(exp.expenses||[]);
     if(!re.length&&!ex.length){el.innerHTML=`<div style="text-align:center;padding:16px;color:var(--gray)">${LANG==='sw'?'Hakuna rekodi':'No records found'}</div>`;return;}
@@ -2972,7 +2986,7 @@ async function loadHistoryView(){
 }
 async function deleteManualRevenue(id){
   if(!confirm(LANG==='sw'?'Futa rekodi hii?':'Delete this entry?'))return;
-  try{await API.apiFetch(`/api/manual-revenue/${id}`,{method:'DELETE'});await loadHistoryView();}
+  try{await API.deleteManualRevenue(id);await loadHistoryView();}
   catch(e){alert('Error: '+e.message);}
 }
 </script>
