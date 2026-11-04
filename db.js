@@ -122,6 +122,8 @@ function migrateDB(db) {
   db.staff = db.staff || [];
   db.settings = db.settings || { lipa_namba: '' };
   if (typeof db.settings.lipa_namba === 'undefined') db.settings.lipa_namba = '';
+  // All dishes available all the time (no need for Kitchen to post stock first).
+  if (typeof db.settings.always_available === 'undefined') db.settings.always_available = true;
   delete db.settings.vat_enabled;
   delete db.settings.vat_rate;
   delete db.settings.quick_sale_enabled; // legacy toggle removed — access is Cashier-login-gated now
@@ -383,6 +385,8 @@ function quickSoldQtyForName(db, nameLower, date) {
       .reduce((s, it) => s + it.quantity, 0), 0);
 }
 
+function alwaysAvailable(db) { return !db.settings || db.settings.always_available !== false; }
+
 const LOCAL = {};
 
 LOCAL.login = (username, password) => {
@@ -426,7 +430,7 @@ LOCAL.dashboard = (sess) => {
     .sort((a, b) => a.plates_taken_at.localeCompare(b.plates_taken_at))
     .map(o => { const waiter = findStaff(o.waiter_id) || {}; const e = Object.assign({}, o); e.waiter_name = waiter.full_name; return e; });
 
-  const outOfStockItems = db.menu_items.filter(m => m.stock_date === today && m.stock_count <= 0).map(m => ({ id: m.id, name: m.name, icon: m.icon }));
+  const outOfStockItems = alwaysAvailable(db) ? [] : db.menu_items.filter(m => m.stock_date === today && m.stock_count <= 0).map(m => ({ id: m.id, name: m.name, icon: m.icon }));
 
   const waiterStats = db.staff.filter(s => s.role === 'Waiter' && s.is_active).map(s => {
     const todays = db.orders.filter(o => o.waiter_id === s.id && dateOf(o.created_at) === today);
@@ -616,10 +620,13 @@ LOCAL.getMenu = (sess) => {
   const items = db.menu_items.map(mi => {
     const c = db.categories.find(c => c.id === mi.category_id) || {};
     const postedToday = mi.stock_date === today;
+    const always = alwaysAvailable(db);
     const stock = postedToday ? mi.stock_count : 0;
     const out = Object.assign({}, mi, {
       category_name: c.name, cat_icon: c.icon, _sort: c.sort_order || 0,
-      stock, posted_today: postedToday, is_available: stock > 0 ? 1 : 0
+      stock, posted_today: postedToday,
+      is_available: (always || stock > 0) ? 1 : 0,
+      always_available: always ? 1 : 0
     });
     if (!canSeeCost) delete out.cost_price;
     return out;
@@ -804,9 +811,11 @@ LOCAL.createOrder = (sess, body) => {
   items.forEach(item => {
     grouped[item.menu_item_id] = (grouped[item.menu_item_id] || 0) + Number(item.quantity);
   });
+  const always = alwaysAvailable(db);
   Object.keys(grouped).forEach(menuItemId => {
     const mi = findMenuItem(menuItemId);
     if (!mi) throw new HttpError(400, 'Kipengele hakipatikani');
+    if (always) return; // every dish is always available — no stock gate
     const postedToday = mi.stock_date === today;
     const available = postedToday ? mi.stock_count : 0;
     if (!available || available < grouped[menuItemId]) {
@@ -829,7 +838,7 @@ LOCAL.createOrder = (sess, body) => {
       unit_cost: unitCost, line_cost: lineCost };
   });
   // Decrement stock now that every line has passed validation.
-  Object.keys(grouped).forEach(menuItemId => {
+  if (!always) Object.keys(grouped).forEach(menuItemId => {
     const mi = findMenuItem(menuItemId);
     mi.stock_count = Math.max(0, mi.stock_count - grouped[menuItemId]);
   });
