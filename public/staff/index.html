@@ -543,7 +543,7 @@ const TRANSLATIONS = {
     'kitchen.elapsedTime':'Elapsed',
     // Food stock (shared by Kitchen/Cashier/Admin)
     'menu.outOfStock':'Out of Stock','menu.lowStock':'Low Stock',
-    'menu.remaining':'Remaining','menu.notPostedToday':'Not posted today',
+    'menu.remaining':'Remaining','menu.notPostedToday':'Not posted today','menu.available':'Available',
     'kitchen.postStock':'Post Stock','kitchen.stockSetTo':'Set to',
     'order.table':'Table','order.tableLabel':'🪑 Table Number','order.pickTableFirst':'Please pick a table number',
     'admin.lipaNamba':'💳 Lipa Namba','admin.lipaNambaLabel':'Payment Number (Lipa Namba)',
@@ -668,7 +668,7 @@ const TRANSLATIONS = {
     'kitchen.elapsedTime':'Imepita',
     // Food stock (shared by Kitchen/Cashier/Admin)
     'menu.outOfStock':'Imeisha','menu.lowStock':'Akiba Kidogo',
-    'menu.remaining':'Zimebaki','menu.notPostedToday':'Bado hazijawekwa leo',
+    'menu.remaining':'Zimebaki','menu.notPostedToday':'Bado hazijawekwa leo','menu.available':'Inapatikana',
     'kitchen.postStock':'Pandisha Chakula','kitchen.stockSetTo':'Zimewekwa',
     'order.table':'Meza','order.tableLabel':'🪑 Namba ya Meza','order.pickTableFirst':'Tafadhali chagua namba ya meza',
     'admin.lipaNamba':'💳 Lipa Namba','admin.lipaNambaLabel':'Namba ya Malipo (Lipa Namba)',
@@ -1212,7 +1212,7 @@ async function renderWaiterNew(){
         <div class="food-info">
           <div class="food-name">${item.name}</div>
           <div class="food-price">${fmtTZS(item.price)}</div>
-          ${!item.is_available?`<div class="food-oos">${t('menu.outOfStock')}</div>`:`<div class="muted" style="font-size:.72rem">${t('menu.remaining')}: ${item.stock}</div>`}
+          ${!item.is_available?`<div class="food-oos">${t('menu.outOfStock')}</div>`:`<div class="muted" style="font-size:.72rem">${item.always_available?'✅ '+t('menu.available'):t('menu.remaining')+': '+item.stock}</div>`}
         </div>
       </div>`).join('');
   }catch(e){gridEl.innerHTML=`<p class="t-danger">${e.message}</p>`;}
@@ -1295,11 +1295,13 @@ function stockCardHtml(item,editable){
   const posted=item.posted_today;
   const stock=item.stock||0;
   return`
-      <div class="avail-card ${stock>0?'':'oos'}">
+      <div class="avail-card ${(stock>0||item.always_available)?'':'oos'}">
         <div style="font-size:2.5rem">${item.icon}</div>
         <div class="fw8 mt-8" style="font-size:.9rem">${item.name}</div>
         <div class="muted mb-8">${fmtTZS(item.price)}</div>
-        ${posted
+        ${(item.always_available&&!posted)
+          ?`<div class="fw8 mb-8">✅ ${t('menu.available')}</div>`
+          :posted
           ?`<div class="${stock>0?'':'food-oos'} fw8 mb-8">${stock>0?`✅ ${t('menu.remaining')}: ${stock}`:`⛔ ${t('menu.outOfStock')}`}</div>`
           :`<div class="food-oos mb-8">⛔ ${t('menu.notPostedToday')}</div>`}
         ${editable?`
@@ -1676,12 +1678,12 @@ async function renderAdminMenu(){
       `<button class="cat-tab" onclick="addCategoryPrompt()">＋ Category</button>`;
     const filtered=ADMIN_CAT_FILTER?menu.filter(m=>m.category_id===ADMIN_CAT_FILTER):menu;
     document.getElementById('admin-menu-grid').innerHTML=filtered.map(item=>`
-      <div class="avail-card ${item.stock>0?'':'oos'}">
+      <div class="avail-card ${(item.stock>0||item.always_available)?'':'oos'}">
         <div style="font-size:2.5rem">${item.icon}</div>
         <div class="fw8 mt-8">${item.name}</div>
         <div class="muted mb-4">${item.category_name}</div>
         <div class="tg fw8 mb-8">${fmtTZS(item.price)}</div>
-        <div class="muted mb-8" style="font-size:.75rem">${item.posted_today?(item.stock>0?`✅ ${t('menu.remaining')}: ${item.stock}`:`⛔ ${t('menu.outOfStock')}`):`⛔ ${t('menu.notPostedToday')}`}</div>
+        <div class="muted mb-8" style="font-size:.75rem">${item.always_available?`✅ ${t('menu.available')}`:item.posted_today?(item.stock>0?`✅ ${t('menu.remaining')}: ${item.stock}`:`⛔ ${t('menu.outOfStock')}`):`⛔ ${t('menu.notPostedToday')}`}</div>
         <div class="flex gap-6 jc-c" style="flex-wrap:wrap">
           <button class="btn btn-dark btn-sm" onclick="editMenuItem(${item.id})">✏️</button>
           <button class="btn btn-danger btn-sm" onclick="deleteMenuItem(${item.id},'${item.name.replace(/'/g,"\\'")}')">🗑️</button>
@@ -2282,7 +2284,7 @@ async function openAssignOrder(waiterId, waiterName){
                 <div style="font-size:2rem">${item.icon}</div>
                 <div class="fw8 mt-4" style="font-size:.82rem">${item.name}</div>
                 <div class="tg fw8 mt-4">${fmtTZS(item.price)}</div>
-                ${!item.is_available?`<div class="muted" style="font-size:.72rem">${t('menu.outOfStock')}</div>`:`<div class="muted" style="font-size:.7rem">${t('menu.remaining')}: ${item.stock}</div>`}
+                ${!item.is_available?`<div class="muted" style="font-size:.72rem">${t('menu.outOfStock')}</div>`:`<div class="muted" style="font-size:.7rem">${item.always_available?'✅ '+t('menu.available'):t('menu.remaining')+': '+item.stock}</div>`}
               </div>`).join('')}
           </div>
         </div>
@@ -2324,7 +2326,7 @@ function assignCatFilter(catId,btn){
       <div style="font-size:2rem">${item.icon}</div>
       <div class="fw8 mt-4" style="font-size:.82rem">${item.name}</div>
       <div class="tg fw8 mt-4">${fmtTZS(item.price)}</div>
-      ${!item.is_available?`<div class="muted" style="font-size:.72rem">${t('menu.outOfStock')}</div>`:`<div class="muted" style="font-size:.7rem">${t('menu.remaining')}: ${item.stock}</div>`}
+      ${!item.is_available?`<div class="muted" style="font-size:.72rem">${t('menu.outOfStock')}</div>`:`<div class="muted" style="font-size:.7rem">${item.always_available?'✅ '+t('menu.available'):t('menu.remaining')+': '+item.stock}</div>`}
     </div>`).join('');
 }
 function assignAddItem(id,name,price,icon){
